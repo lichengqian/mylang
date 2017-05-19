@@ -8,6 +8,7 @@
   :kotlin-source-paths ["src/kotlin"]
   :dependencies [[org.clojure/clojure "1.8.0"]
                  [org.jetbrains.kotlin/kotlin-runtime "1.0.2"]
+                 [org.jetbrains.kotlin/kotlin-stdlib "1.0.2"]
                  [com.stuartsierra/component "0.3.2"]
                  [org.clojure/tools.logging "0.3.1"]
                  [com.palletops/pallet-common "0.4.0"]]

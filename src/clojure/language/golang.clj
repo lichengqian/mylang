@@ -12,7 +12,10 @@
 
 (derive ::golang :language.common/common-impl)
 
-(def ^:private golang (Golang. emit emit-type))
+(defn- go-import [path]
+  (add-import (str "import \"" path "\"")))
+
+(def ^:private golang (Golang. emit emit-type go-import))
 
 ;;; * Keyword and Operator Classes
 (def infix-operators
@@ -115,9 +118,6 @@
 
 (defmethod emit-special [::golang 'ns] [type [ns path]]
   (set-ns (emit path)))
-
-(defn- go-import [path]
-  (add-import (str "import \"" path "\"")))
 
 (defmethod emit-special [::golang 'import] [type [_ path]]
   (go-import path))

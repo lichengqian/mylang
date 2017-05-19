@@ -54,7 +54,7 @@ fun Render.match(emit: IFn, value: Any, branchs: Iterable<Any>) {
     }
 }
 
-data class Golang(val emit: IFn, val emitType: IFn) {
+data class Golang(val emit: IFn, val emitType: IFn, val goImport: IFn) {
     fun emitEnum(name: Any, values: Iterable<Any>) =
         render { enum(name, values) }
 
@@ -66,6 +66,18 @@ data class Golang(val emit: IFn, val emitType: IFn) {
 
     fun Render.type(t1: Any, t2: Any) = +"type $t1 ${emitType.invoke(t2)} \n"
 
+    private fun Render.structField(v: Any, t: Any) {
+        when {
+            v.toString().get(0) == '*' -> {
+                goImport.invoke("sync")
+                val vname = v.toString().drop(1)
+                +"${vname}_lock sync.Mutex"
+                +"$vname $t"
+            }
+            else -> +"$v $t"
+        }
+    }
+
     // 增强语法
     fun Render.struct(name: Any, fields: Iterable<Any>) =
             "type $name struct".brace {
@@ -73,7 +85,7 @@ data class Golang(val emit: IFn, val emitType: IFn) {
                 while (it.hasNext()) {
                     val v = it.next()
                     val t = emitType.invoke(it.next())
-                    +"$v $t"
+                    structField(v, t)
                 }
             }
 
