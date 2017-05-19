@@ -80,7 +80,7 @@
     :internal true}
   special-forms
   #{'ns 'import 'struct 'type 'enum 'fn 'fn- 'val 'val- 'main
-    'if 'if-not 'when 'when-not 'match 'aget 'aset 'get 'return 'set!
+    'if 'match 'aget 'aset 'get 'return 'set!
     'local 'literally 'deref 'do 'str 'quoted 'apply
     'file-exists? 'directory? 'symlink? 'readable? 'writeable? 'empty?
     'not 'println 'print 'group 'pipe 'chain-or
@@ -90,6 +90,11 @@
   "Operators that should not be resolved."
   #{'+ '- '/ '* '% '== '= '< '> '<= '>= '!= '<< '>> '<<< '>>> '& '| '&& '||
     'and 'or})
+
+(def 
+  builtin-macros
+  "Operators that should not be resolved."
+  #{'if-not 'when 'when-not})
 
 (def ^:internal unresolved
   "Set of symbols that should not be resolved."
@@ -453,12 +458,14 @@
 
 ;; -- common helper functions
 (defn set-ns [s]
-  (set! *compiler-context* {:ns (str s "\n\n")})
+  (->>  (str s "\n\n")
+        (assoc-in *compiler-context* [:ns])
+        (set! *compiler-context*))
   "")
 
 (defn add-import [s]
-  (->> (conj (:import *compiler-context*) s)
-    (assoc *compiler-context* :import)
+  (->> (update-in *compiler-context* [:import] conj s)
+    ; (assoc *compiler-context* :import)
     (set! *compiler-context*))
   "")
 

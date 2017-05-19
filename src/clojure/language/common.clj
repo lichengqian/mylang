@@ -4,9 +4,7 @@
    [clojure.string :as string]
    [clojure.tools.logging :refer [tracef]]
    [mylang
-    :refer [chain-commands checked-commands do-script emit *script-language*
-            special-forms splice-args splice-seq *src-line-comments*
-            with-script-language with-source-line-comments]]))
+    :refer :all]))
 
 
 ;; Main dispatch functions.
@@ -95,6 +93,10 @@
   [expr]
   (contains? special-forms expr))
 
+(defn macro?
+  "Predicate to check if expr is a macro form"
+  [expr]
+  (contains? builtin-macros expr))
 
 ;;; Implementation coverage tests
 ;;;
@@ -187,6 +189,7 @@
 
        (special-form? head) (emit-special head expr1)
        (infix-operator? head) (emit-infix head expr1)
+       (macro? head) (emit (macroexpand-1 expr))
        :else (emit-special 'invoke expr)))
     (emit-special 'invoke expr)))
 
@@ -217,12 +220,6 @@
   (if (= 'list (first expr))
     (emit-s-expr (rest expr))
     (emit-s-expr expr)))
-
-(defmethod emit-special [::common-impl 'when] [type form]
-  (emit (macroexpand-1 form)))
-
-(defmethod emit-special [::common-impl 'when-not] [type form]
-  (emit (macroexpand-1 form)))
 
 (defmethod emit-special [::common-impl 'apply] [type [apply & exprs]]
   (emit-s-expr (spread exprs)))

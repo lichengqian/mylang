@@ -15,6 +15,7 @@
     ; (println *compiler-context*)
     (let [_ns (:ns *compiler-context*)
           _imports (into #{} (:import *compiler-context*))
+          _ (println _imports)
           _out (str (emit-ns _ns)
                     (apply str (map #(str % "\n") _imports))
                     "\n"

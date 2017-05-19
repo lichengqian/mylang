@@ -1,20 +1,16 @@
 (ns language.golang
-  (:require
-    [pallet.common.resource :as resource]
-    [pallet.common.string :as common-string]
-    [clojure.string :as string]
-    [cljstache.core :refer [render]])
+  (:require [pallet.common.resource :as resource]
+            [pallet.common.string :as common-string]
+            [clojure.string :as string])
   (:use
    [language.common]
    [mylang
     ; :only [emit emit-do special-forms splice-seq with-source-line-comments]
     ]
-   [pallet.common.string :only [quoted substring underscore]]))
+   [pallet.common.string :only [quoted substring underscore]])
+   (:import language.Golang))
 
-(import 'language.Golang)
-
-(def _target ::golang)
-(derive _target :language.common/common-impl)
+(derive ::golang :language.common/common-impl)
 
 (def ^:private golang (Golang. emit emit-type))
 
@@ -251,25 +247,17 @@
   (if (or (compound-form? form)
           (= 'if (first form))
           (.contains (emit form) "\n"))
-    (str "{\n" (emit form) "}\n")
-    (str "{\n " (emit form) "}\n")))
+    (str "{\n" (emit form) "}")
+    (str "{\n " (emit form) "}")))
 
 (defmethod emit-special [::golang 'if] [type [if test true-form & false-form]]
   (str "if "
        (emit test) " "
        (emit-body-for-if true-form)
        (when (first false-form)
-         (str "else " (emit-body-for-if (first false-form))))
+         (str " else " (emit-body-for-if (first false-form))))
+       "\n"
        ))
-
-(defmethod emit-special [::golang 'if-not] [type [if test true-form & false-form]]
-  (str "if ! ( "
-       (emit test)
-       " ); then"
-       (emit-body-for-if true-form)
-       (when (first false-form)
-         (str "else" (emit-body-for-if (first false-form))))
-       "fi"))
 
 (defmethod emit-special [::golang 'match]
   [type [_ test & exprs]]
@@ -415,7 +403,7 @@
 
 (defmethod emit-type-builtin ::golang
   [t]
-  (println t)
+  ; (println t)
   (case (str t)
     "Void" ""
     "String" "string"
