@@ -2,6 +2,7 @@ package language
 
 import java.util.*
 import clojure.lang.*
+import kotlin.collections.*
 
 
 val String.keyword: Keyword
@@ -72,7 +73,7 @@ data class Golang(val emit: IFn, val emitType: IFn, val goImport: IFn) {
                 goImport.invoke("sync")
                 val vname = v.toString().drop(1)
                 +"${vname}_lock sync.Mutex"
-                +"$vname $t"
+                +"$vname *$t"
             }
             else -> +"$v $t"
         }
@@ -93,7 +94,7 @@ data class Golang(val emit: IFn, val emitType: IFn, val goImport: IFn) {
         type(name, "uint8".symbol)
         enumStruct(name, values)
         newline()
-        func("(rs $name) Error() string") {
+        func("(rs $name) String() string") {
             switch("rs") {
                 for (v in values) {
                     +"case ${v.tag}: return \"${v.constructor}\""
@@ -108,21 +109,21 @@ data class Golang(val emit: IFn, val emitType: IFn, val goImport: IFn) {
         fun enumValueList(idx: Int, vs: ISeq) {
             val constructor = vs.first()
             var fields = vs.next()
-            var args = StringBuilder()
+            var args = mutableListOf<String>()
             var params = StringBuilder()
             "type $constructor struct".brace {
                 +name.toString()
                 var i = 1
                 while (fields != null) {
                     val t = emitType.invoke(fields.first())
-                    args.append("_a$i $t ")
+                    args.add("_a$i $t ")
                     params.append(", _a$i")
                     +"_${i++} $t"
                     fields = fields.next()
                 }
             }
             // new function
-            func("New$constructor($args) $constructor") {
+            func("New$constructor(${args.joinToString()}) $constructor") {
                 +"return $constructor{${vs.tag}$params}"
             }
         }

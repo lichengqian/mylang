@@ -406,8 +406,11 @@
   ; (println t)
   (case (str t)
     "Void" ""
+    "UInt32" "uint32"
     "String" "string"
+    "Error" "error"
     "Chan" "chan"
+    "Lock"  (do (go-import "sync") "sync.Mutex")
 
     "Listener" (do (go-import "net") "net.Listener")
     "Conn" (do (go-import "net") "net.Conn")
@@ -418,6 +421,7 @@
   (case (str c)
     "->" (.emitFnType golang args)
     "Either" (str "(" (emit-type (second args)) ", " (emit-type (first args)) ")")
+    "Map" (str "map[" (emit-type (first args)) "]*" (emit-type (second args)))
     (->> args
         (map emit-type)
         (string/join " ")
