@@ -407,7 +407,9 @@
   (case (str t)
     "Void" ""
     "UInt32" "uint32"
+    "UInt64" "uint64"
     "String" "string"
+    "ByteString" "[]byte"
     "Error" "error"
     "Chan" "chan"
     "Lock"  (do (go-import "sync") "sync.Mutex")
@@ -422,6 +424,7 @@
     "->" (.emitFnType golang args)
     "Either" (str "(" (emit-type (second args)) ", " (emit-type (first args)) ")")
     "Map" (str "map[" (emit-type (first args)) "]*" (emit-type (second args)))
+    "Set" (str "map[" (emit-type (first args)) "]struct{}")
     (->> args
         (map emit-type)
         (string/join " ")

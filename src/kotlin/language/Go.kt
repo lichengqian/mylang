@@ -123,8 +123,8 @@ data class Golang(val emit: IFn, val emitType: IFn, val goImport: IFn) {
                 }
             }
             // new function
-            func("New$constructor(${args.joinToString()}) $constructor") {
-                +"return $constructor{${vs.tag}$params}"
+            func("New$constructor(${args.joinToString()}) *$constructor") {
+                +"return &$constructor{${vs.tag}$params}"
             }
         }
 
