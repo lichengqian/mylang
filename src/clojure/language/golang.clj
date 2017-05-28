@@ -4,11 +4,11 @@
             [clojure.string :as string])
   (:use
    [language.common]
-   [mylang
+   [mylang]
     ; :only [emit emit-do special-forms splice-seq with-source-line-comments]
-    ]
+    
    [pallet.common.string :only [quoted substring underscore]])
-   (:import language.Golang))
+  (:import language.Golang))
 
 (derive ::golang :language.common/common-impl)
 
@@ -119,8 +119,8 @@
 (defemit-special ::golang
   'ns [path] (set-ns (emit path))
   'import [path] (go-import path)
-  'not [expr] (str "!(" (emit expr) ")")
-  )
+  'not [expr] (str "!(" (emit expr) ")"))
+  
 
 (defn- check-symbol [var-name]
   (when (re-matches #".*-.*" var-name)
@@ -196,10 +196,10 @@
   
   clojure.lang.IPersistentMap
     (letfn [(subscript-assign
-           [pair]
-           (str "[" (emit (key pair)) "]=" (emit (val pair))))]
-      (str "(" (string/join " " (map subscript-assign (seq expr))) ")"))
-  )
+             [pair]
+             (str "[" (emit (key pair)) "]=" (emit (val pair))))]
+      (str "(" (string/join " " (map subscript-assign (seq expr))) ")")))
+  
 
 ;; TODO should this even exist?
 ;; It causes seemingly unnessessary conflicts with ::common-impl implementations
@@ -232,8 +232,8 @@
        (emit-body-for-if true-form)
        (when (first false-form)
          (str " else " (emit-body-for-if (first false-form))))
-       "\n"
-       ))
+       "\n"))
+       
 
 (defmethod emit-special [::golang 'match]
   [type [_ test & exprs]]
@@ -405,8 +405,8 @@
     (->> args
         (map emit-type)
         (string/join " ")
-        (str (emit-type c) " ")
-        )))
+        (str (emit-type c) " "))))
+        
 
 (defmethod emit-ns ::golang
   [s]

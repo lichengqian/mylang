@@ -12,8 +12,8 @@
    [clojure.tools.logging :refer [tracef]]
   ;  [clojure.walk :as walk]
    [pallet.common.deprecate :as deprecate]
-   [pallet.common.string :refer [underscore]]
-   ))
+   [pallet.common.string :refer [underscore]]))
+   
 
 (declare ^{:dynamic true} *script-language*)
 (declare ^{:dynamic true} *compiler-context*)
@@ -221,7 +221,7 @@
 (defmacro defemit [lang expr & body]
   (let [ps (partition 2 body)
         codes (for [[t e] ps]
-          `(defmethod emit [~lang ~t] [~expr] ~e))]
+               `(defmethod emit [~lang ~t] [~expr] ~e))]
     (list* 'do codes)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -249,13 +249,13 @@
   "Provide the source file and line number for use in reporting."
   [[file line] & body]
   `(binding [*script-line* ~line
-            *script-file* ~file]
+             *script-file* ~file]
     ~@body))
 
 (def ^:dynamic *apply-form-meta* false)
 
 (defn- form-meta
-  [new-form form ]
+  [new-form form]
   (tracef "form-meta %s %s" form (meta form))
   (if-let [m (and *apply-form-meta* (meta form))]
     (if (number? new-form)
