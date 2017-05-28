@@ -116,17 +116,11 @@
          (get infix-conversions operator operator)
          " " (emit-quoted-if-not-subexpr quoting (second args)) close)))
 
-(defmethod emit-special [::golang 'ns] [type [ns path]]
-  (set-ns (emit path)))
-
-(defmethod emit-special [::golang 'import] [type [_ path]]
-  (go-import path))
-
-(defmethod emit-special [::golang 'not] [type [not expr]]
-  (str "! { " (emit expr) "; }"))
-
-(defmethod emit-special [::golang 'local] [type [local name expr]]
-  (str "local " (emit name) "=" (emit expr)))
+(defemit-special ::golang
+  'ns [path] (set-ns (emit path))
+  'import [path] (go-import path)
+  'not [expr] (str "!(" (emit expr) ")")
+  )
 
 (defn- check-symbol [var-name]
   (when (re-matches #".*-.*" var-name)
@@ -184,35 +178,28 @@
   (go-import "fmt")
   (str "fmt.Print(" (string/join " " (map emit args)) ")"))
 
-; (defonce
-;   ^{:doc
-;     "bash library for associative arrays in bash 3. You need to include this in
-;      your script if you use associative arrays, e.g. with `assoc!`."}
-;   hashlib (resource/slurp "stevedore/hashlib.bash"))
+(defemit ::golang expr
+  nil "nil"
+  java.lang.Boolean (str expr)
+  java.lang.Integer (str expr)
+  java.lang.Long (str expr)
+  java.lang.String (str "\"" expr "\"")
 
-(defmethod emit [::golang nil] [expr]
-  "nil")
+  clojure.lang.Ratio (str (float expr))
+  clojure.lang.Keyword (name expr)
+  clojure.lang.Symbol (str expr)
 
-(defmethod emit [::golang java.lang.Integer] [expr]
-  (str expr))
-
-(defmethod emit [::golang java.lang.Long] [expr]
-  (str expr))
-
-(defmethod emit [::golang clojure.lang.Ratio] [expr]
-  (str (float expr)))
-
-(defmethod emit [::golang clojure.lang.Keyword] [expr]
-  (name expr))
-
-(defmethod emit [::golang java.lang.String] [expr]
-  (str "\"" expr "\""))
-
-(defmethod emit [::golang clojure.lang.Symbol] [expr]
-  (str expr))
-
-(defmethod emit [::golang java.lang.Boolean] [expr]
-  (str expr))
+  clojure.lang.IPersistentVector
+    (str (if *delimited-sequence* "(" "")
+       (string/join " " (map emit expr))
+       (if *delimited-sequence* ")" ""))
+  
+  clojure.lang.IPersistentMap
+    (letfn [(subscript-assign
+           [pair]
+           (str "[" (emit (key pair)) "]=" (emit (val pair))))]
+      (str "(" (string/join " " (map subscript-assign (seq expr))) ")"))
+  )
 
 ;; TODO should this even exist?
 ;; It causes seemingly unnessessary conflicts with ::common-impl implementations
@@ -220,17 +207,6 @@
 ;;
 ;;(defmethod emit [::golang java.lang.Object] [expr]
 ;;  (str expr))
-
-(defmethod emit [::golang clojure.lang.IPersistentVector] [expr]
-  (str (if *delimited-sequence* "(" "")
-       (string/join " " (map emit expr))
-       (if *delimited-sequence* ")" "")))
-
-(defmethod emit [::golang clojure.lang.IPersistentMap] [expr]
-  (letfn [(subscript-assign
-           [pair]
-           (str "[" (emit (key pair)) "]=" (emit (val pair))))]
-    (str "(" (string/join " " (map subscript-assign (seq expr))) ")")))
 
 ;;; TODO move to pallet.common.string
 (defn comma-list
@@ -425,6 +401,7 @@
     "Either" (str "(" (emit-type (second args)) ", " (emit-type (first args)) ")")
     "Map" (str "map[" (emit-type (first args)) "]*" (emit-type (second args)))
     "Set" (str "map[" (emit-type (first args)) "]struct{}")
+    "IO" (str "(" (emit-type (first args)) ", error)")
     (->> args
         (map emit-type)
         (string/join " ")

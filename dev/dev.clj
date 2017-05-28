@@ -22,6 +22,7 @@
    [com.stuartsierra.component.repl :refer [reset set-init start stop system]]
    [clj-compiler])
    (:use  [mylang]
+          [language.common]
           [language.golang]
           [clj-compiler]))
 

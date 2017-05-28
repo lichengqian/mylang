@@ -10,7 +10,7 @@
    [clojure.set :refer [union]]
    [clojure.string :as string]
    [clojure.tools.logging :refer [tracef]]
-   [clojure.walk :as walk]
+  ;  [clojure.walk :as walk]
    [pallet.common.deprecate :as deprecate]
    [pallet.common.string :refer [underscore]]
    ))
@@ -218,7 +218,11 @@
     {:script-language *script-language*
      :expr expr})))
 
-
+(defmacro defemit [lang expr & body]
+  (let [ps (partition 2 body)
+        codes (for [[t e] ps]
+          `(defmethod emit [~lang ~t] [~expr] ~e))]
+    (list* 'do codes)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; IMPLEMENTATION DETAILS

@@ -75,6 +75,14 @@
 (defmulti emit-infix
   (fn [type [operator & args]] *script-language*))
 
+;; 辅助macro，方便定义具体实现
+;; 定义三元组: form params exprs
+(defmacro defemit-special [lang & body]
+  (let [ps (partition 3 body)
+        codes (for [[t ps e] ps]
+          `(defmethod emit-special [~lang ~t] [type# [h# ~@ps]] ~e))]
+    (list* 'do codes)))
+
 ;; Common functions/predicates
 
 (defn compound-form?
