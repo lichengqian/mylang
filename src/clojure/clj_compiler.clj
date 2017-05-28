@@ -32,6 +32,6 @@
 (defn clj-compile 
     "编译一个clj文件，生成同名的golang文件"
     ([path]
-        (println (_compile path)))
+     (println (_compile path)))
     ([path target]
-        (spit target (_compile path))))
+     (spit target (_compile path))))

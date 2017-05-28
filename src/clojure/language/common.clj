@@ -80,7 +80,7 @@
 (defmacro defemit-special [lang & body]
   (let [ps (partition 3 body)
         codes (for [[t ps e] ps]
-          `(defmethod emit-special [~lang ~t] [type# [h# ~@ps]] ~e))]
+               `(defmethod emit-special [~lang ~t] [type# [h# ~@ps]] ~e))]
     (list* 'do codes)))
 
 ;; Common functions/predicates
