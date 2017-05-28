@@ -1,6 +1,9 @@
 (ns tcp)
 
 (type EndPointId UInt32)
+(type LightweightConnectionId UInt32)
+(type HeavyweightConnectionId UInt32)
+(type ConnectionId UInt64)
 
 (enum NewEndPointErrorCode
     NewEndPointInsufficientResources
@@ -8,7 +11,6 @@
 
 (struct TCPTransport
     transportAddr TransportAddr
-    listener Listener
     *transportState TransportState)
 
 (struct TransportState
@@ -17,42 +19,55 @@
 
 (struct LocalEndPoint
     localAddress EndPointAddress
-    connections  (Chan Conn)
-    closeLocalEndPoint (-> Error))
+    *localState  LocalEndPointState
+    localQueue   (Chan Event)
+    closeLocalEndPoint (-> (IO Error)))
 
-(enum ConnectionRequestResponse
-    ConnectionRequestAccepted
-    ConnectionRequestInvalid
-    ConnectionRequestCrossed
-    ConnectionRequestHostMismatch)
+(enum Event
+    "Event on an endpoint."
+    (Received ConnectionId ByteString)
+    (ConnectionClosed ConnectionId)
+    (ConnectionOpened ConnectionId EndPointAddress)
+    EndPointClosed
+    (ErrorEvent string))
 
-; (enum ConnectErrorCode
-;     ConnectNotFound
-;     ConnectInsufficientResources
-;     ConnectTimeout
-;     ConnectFailed)
+(struct LocalEndPointState
+    _localNextConnOutId   LightweightConnectionId
+    _nextConnInId       HeavyweightConnectionId
+    _localConnections (Map EndPointAddress RemoteEndPoint))
 
-; (enum RemoteState
-;     (RemoteEndPointInvalid ConnectErrorCode String)
-;     (RemoteEndPointInit Lock Lock RequestedBy)
-;     (RemoteEndPointValid RemoteEndPointState)
-;     (RemoteEndPointClosing Lock RemoteEndPointState)
-;     RemoteEndPointClosed
-;     (RemoteEndPointFailed Error))
+(struct RemoteEndPoint
+    remoteAddress EndPointAddress
+    *remoteState RemoteState
+    remoteId    HeavyweightConnectionId)
 
-; (struct RemoteEndPointState
-;     remoteConn Conn
-;     remoteSendLock Lock
-;     )
+(enum RemoteState
+    (RemoteEndPointInvalid ConnectErrorCode String)
+    (RemoteEndPointInit Lock Lock RequestedBy)
+    (RemoteEndPointValid ValidRemoteEndPointState)
+    (RemoteEndPointClosing Lock ValidRemoteEndPointState)
+    RemoteEndPointClosed
+    (RemoteEndPointFailed Error))
 
-; (struct LocalEndPointState
-;     localConnections (Map EndPointAddress RemoteEndPoint))
+(struct ValidRemoteEndPointState
+    _remoteOutgoing LightweightConnectionId
+    _remoteIncoming (Set LightweightConnectionId)
+    _remoteLastIncoming LightweightConnectionId
+    _remoteNextConnOutId LightweightConnectionId
+    remoteConn Conn
+    remoteSendLock Lock
+    )
 
-; (struct RemoteEndPoint
-;     remoteAddress EndPointAddress
-;     *remoteState RemoteState)
+(enum RequestedBy
+    RequestedByUs
+    RequestedByThem)
 
-; (enum RequestedBy
-;     RequestedByUs
-;     RequestedByThem)
+(enum ConnectErrorCode
+    ConnectNotFound
+    ConnectInsufficientResources
+    ConnectTimeout
+    ConnectFailed)
 
+(fn test []
+    (println "hello")
+    [(not 1) nil])

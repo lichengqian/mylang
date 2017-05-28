@@ -2,18 +2,9 @@ package tcp
 
 import (
 	"bufio"
-	"encoding/binary"
 	"errors"
-	"io"
 	"net"
 )
-
-type TransportAddr string
-
-type EndPointAddress struct {
-	TransportAddr
-	epid EndPointId
-}
 
 func createTCPTransport(lAddr string) (*TCPTransport, error) {
 	ln, err := net.Listen("tcp", lAddr)
@@ -23,14 +14,22 @@ func createTCPTransport(lAddr string) (*TCPTransport, error) {
 
 	state := &TransportState{
 		_localEndPoints: make(map[EndPointId]*LocalEndPoint, 10),
+		_nextEndPointId: 0,
 	}
 
 	tp := &TCPTransport{
 		transportAddr:  TransportAddr(lAddr),
-		listener:       ln,
 		transportState: state,
 	}
-	go tp.transportRoutine()
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				panic(err)
+			}
+			go tp.handleConnectionRequest(conn)
+		}
+	}()
 	return tp, nil
 }
 
@@ -45,9 +44,12 @@ func (tp *TCPTransport) newLocalEndPoint(epid EndPointId) (*LocalEndPoint, NewEn
 		return nil, NewEndPointFailed
 	}
 
+	st := &LocalEndPointState{}
+
 	endpoints[epid] = &LocalEndPoint{
 		localAddress: EndPointAddress{tp.transportAddr, epid},
-		connections:  make(chan net.Conn, 10),
+		localState:   st,
+		localQueue:   make(chan Event, 10),
 		closeLocalEndPoint: func() error {
 			return tp.closeLocalEndPoint(epid)
 		},
@@ -61,13 +63,16 @@ func (tp *TCPTransport) closeLocalEndPoint(epid EndPointId) error {
 
 	endpoints := tp.transportState._localEndPoints
 	if ep, ok := endpoints[epid]; ok {
-		close(ep.connections)
+		// close(ep.connections)
 		delete(endpoints, epid)
 		return nil
 	}
 	return errors.New("endpoinyt not exist!")
 }
 
+//------------------------------------------------------------------------------
+// Incoming requests                                                          --
+//------------------------------------------------------------------------------
 func (tp *TCPTransport) handleConnectionRequest(conn net.Conn) {
 	// get endpoint id
 	ourEndPointID, err := ReadUint32(conn)
@@ -76,77 +81,149 @@ func (tp *TCPTransport) handleConnectionRequest(conn net.Conn) {
 		return
 	}
 	// get remote endpoint
-	theirEndPoint, err := ReadWithLen(conn, 1000)
+	bs, err := ReadWithLen(conn, 1000)
 	if err != nil {
 		conn.Close()
 		return
 	}
+	theirAddress := decodeEndPointAddress(bs)
+	println(theirAddress)
+	if !checkPeer(conn, theirAddress) {
+		WriteUint32(uint32(ConnectionRequestHostMismatch), conn)
+		conn.Close()
+		return
+	}
 
-	println(theirEndPoint)
+	// ourAddress := tp.transportAddr.encodeEndPointAddress(ourEndPointID)
+
 	// dispatch to endpoint
-	tp.transportState_lock.Lock()
-	defer tp.transportState_lock.Unlock()
+	// we need this clojure to avoid dead lock!!!
+	ep, err := func() (*LocalEndPoint, error) {
+		tp.transportState_lock.Lock()
+		defer tp.transportState_lock.Unlock()
 
-	state := tp.transportState
-	if ep, ok := state._localEndPoints[EndPointId(ourEndPointID)]; ok {
-		//connection accepted
-		WriteUint32(uint32(ConnectionRequestAccepted), conn)
-		ep.connections <- conn
-	} else {
+		state := tp.transportState
+		if state == nil {
+			return nil, errors.New("Transport closed")
+		}
+
+		if ep, ok := state._localEndPoints[EndPointId(ourEndPointID)]; ok {
+			return ep, nil
+		}
+
 		//connection to unknown endpoint
 		WriteUint32(uint32(ConnectionRequestInvalid), conn)
+		return nil, errors.New("unknown endpoint")
+	}()
+
+	if err != nil {
+		println(err)
 		conn.Close()
+		return
 	}
+
+	ep.handleConnectionRequest(theirAddress, conn)
 }
 
-func (tp *TCPTransport) transportRoutine() {
+// endpoint handle incoming connection
+func (ourEndPoint *LocalEndPoint) handleConnectionRequest(theirAddress *EndPointAddress, conn net.Conn) {
+	// This runs in a thread that will never be killed
+	theirEndPoint, err := ourEndPoint.findRemoteEndPoint(*theirAddress, RequestedByThem)
+	if err != nil {
+		println(err)
+		WriteUint32(uint32(ConnectionRequestCrossed), conn)
+		conn.Close()
+		return
+	}
+
+	st := NewRemoteEndPointValid(
+		ValidRemoteEndPointState{
+			remoteConn: conn,
+			// remoteOutgoing: 0,
+		})
+	//connection accepted
+	WriteUint32(uint32(ConnectionRequestAccepted), conn)
+	resolveInit(ourEndPoint, theirEndPoint, st)
+	theirEndPoint.handleIncomingMessage()
+}
+
+// | Handle requests from a remote endpoint.
+//
+// Returns only if the remote party closes the socket or if an error occurs.
+// This runs in a thread that will never be killed.
+func handleIncomingMessage(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEndPoint) {
+	sock, err := func() (net.Conn, error) {
+		theirEndPoint.remoteState_lock.Lock()
+		defer theirEndPoint.remoteState_lock.Unlock()
+
+		//TODO: 1072
+		return nil, errors.New("handleIncomingMessages (failed)")
+	}()
+
+	// Deal with a premature exit 1329
+	prematureExit := func(err error) {
+
+	}
+
+	if err != nil {
+		prematureExit(err)
+		return
+	}
+
+	// Dispatch
+	//
+	// If a recv throws an exception this will be caught top-level and
+	// 'prematureExit' will be invoked. The same will happen if the remote
+	// endpoint is put into a Closed (or Closing) state by a concurrent thread
+	// (because a 'send' failed) -- the individual handlers below will throw a
+	// user exception which is then caught and handled the same way as an
+	// exception thrown by 'recv'.
+
+	//TODO: 1101
 	for {
-		conn, err := tp.listener.Accept()
+		lcid, err := ReadUint32(sock)
 		if err != nil {
-			panic(err)
+			prematureExit(err)
+			return
 		}
-		tp.handleConnectionRequest(conn)
+
 	}
 }
 
-func WriteUint32(i uint32, w io.Writer) (int, error) {
-	var buf [4]byte
-	binary.BigEndian.PutUint32(buf[:], uint32(i))
-	return w.Write(buf[:])
-}
+// | Find a remote endpoint. If the remote endpoint does not yet exist we
+// create it in Init state. Returns if the endpoint was new, or 'Nothing' if
+// it times out.
+func (ourEndPoint *LocalEndPoint) findRemoteEndPoint(theirAddress EndPointAddress, findOrigin RequestedBy) (*RemoteEndPoint, error) {
+	ourEndPoint.localState_lock.Lock()
+	defer ourEndPoint.localState_lock.Unlock()
 
-func ReadExact(r io.Reader, len uint32) ([]byte, error) {
-	buf := make([]byte, len)
-	_, err := io.ReadFull(r, buf[:])
-	if err != nil {
-		return nil, err
-	}
-	return buf, nil
-}
-
-func ReadUint32(r io.Reader) (uint32, error) {
-	var buf [4]byte
-	_, err := io.ReadFull(r, buf[:])
-	if err != nil {
-		return 0, err
-	}
-	return uint32(binary.BigEndian.Uint32(buf[:])), nil
-}
-
-func ReadWithLen(r io.Reader, limit uint32) ([]byte, error) {
-	len, err := ReadUint32(r)
-	if err != nil {
-		return nil, err
-	}
-	if len > limit {
-		return nil, errors.New("limit exceeded")
+	state := ourEndPoint.localState
+	if state == nil {
+		return nil, errors.New("Local endpoint closed")
 	}
 
-	buf, err := ReadExact(r, len)
-	if err != nil {
-		return nil, err
+	if theirEndPoint, ok := state._localConnections[theirAddress]; ok {
+		theirEndPoint.remoteState_lock.Lock()
+		defer theirEndPoint.remoteState_lock.Unlock()
+
+		theirState := theirEndPoint.remoteState
+		//TODO:
+		switch theirState {
+		case RemoteEndPointValid:
+			return nil, nil
+		}
+	} else {
+		//TODO:
+		theirState := nil
+		theirEndPoint = &RemoteEndPoint{
+			remoteAddress: theirAddress,
+			remoteState:   theirState,
+			remoteId:      state._nextConnInId,
+		}
+		state._localConnections[theirAddress] = theirEndPoint
+		state._nextConnInId += 1
+		return theirEndPoint, nil
 	}
-	return buf, nil
 }
 
 func (ep *LocalEndPoint) connect(remoteEP EndPointAddress) (net.Conn, error) {
@@ -175,3 +252,22 @@ func (ep *LocalEndPoint) connect(remoteEP EndPointAddress) (net.Conn, error) {
 	}
 	return conn, nil
 }
+
+// Resolve an endpoint currently in 'Init' state
+func resolveInit(ourEndPoint LocalEndPoint, theirEndPoint RemoteEndPoint, newState *RemoteState) {
+	theirEndPoint.remoteState_lock.Lock()
+	defer theirEndPoint.remoteState_lock.Unlock()
+
+	st := theirEndPoint.remoteState
+
+	theirEndPoint.remoteState = newState
+}
+
+//------------------------------------------------------------------------------
+// Constants                                                                  --
+//------------------------------------------------------------------------------
+
+const (
+	firstNonReservedLightweightConnectionId = LightweightConnectionId(1024)
+	firstNonReservedHeavyweightConnectionId = HeavyweightConnectionId(1)
+)
