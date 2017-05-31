@@ -15,7 +15,7 @@ type EndPointAddress struct {
 }
 
 func (tp TransportAddr) encodeEndPointAddress(epid EndPointId) *EndPointAddress {
-	return EndPointAddress{tp, epid}
+	return &EndPointAddress{tp, epid}
 }
 
 func decodeEndPointAddress(bs []byte) *EndPointAddress {
@@ -63,7 +63,46 @@ func ReadWithLen(r io.Reader, limit uint32) ([]byte, error) {
 	return buf, nil
 }
 
-func checkPeer(conn net.Conn, epAddr *EndPointAddress) bool {
+func checkPeerHost(conn net.Conn, epAddr *EndPointAddress) bool {
 	//TODO: check remote ip and port
 	return true
+}
+
+func writeConnectionRequestResponse(rsp ConnectionRequestResponse, w io.Writer) (int, error) {
+	return WriteUint32(uint32(rsp.tagConnectionRequestResponse()), w)
+}
+
+// net function
+func forkServer(lAddr string, handler func(net.Conn)) error {
+	ln, err := net.Listen("tcp", lAddr)
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				panic(err)
+			}
+			go handler(conn)
+		}
+	}()
+	return nil
+}
+
+func decodeControlHeader(lcid uint32) ControlHeader {
+	switch uint8(lcid) {
+	case 0:
+		return CreateNewConnection{}
+	}
+	return nil
+}
+
+//-----------------------------------------------------------------------------
+// Debugging                                                                 --
+//-----------------------------------------------------------------------------
+
+func (ourEndPoint *LocalEndPoint) relyViolation(str string) {
+	panic(str + " RELY violation")
 }

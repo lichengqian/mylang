@@ -94,6 +94,7 @@ data class Golang(val emit: IFn, val emitType: IFn, val goImport: IFn) {
     fun Render.enum(name: Any, values: Iterable<Any>) {
         declInterface(name) {
             +"tag$name() uint8"
+            +"String() string"
         }
         enumStruct(name, values)
         newline()

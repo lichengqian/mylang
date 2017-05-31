@@ -16,29 +16,12 @@ type EndPoint interface {
 }
 
 func CreateTransport(lAddr string) (Transport, error) {
-	return createTCPTransport(lAddr)
+	// return createTCPTransport(lAddr)
+	return nil, errors.New("not implemented")
 }
 
 func (addr *EndPointAddress) String() string {
 	return fmt.Sprintf("%s:%d", addr.TransportAddr, addr.epid)
-}
-
-func (tp *TCPTransport) Listen(epid EndPointId) (EndPoint, error) {
-	ep, err := tp.newLocalEndPoint(epid)
-	if ep == nil {
-		// println(err.String())
-		return nil, errors.New(err.String())
-	}
-	return ep, nil
-}
-
-func (ep *LocalEndPoint) Accept() (net.Conn, error) {
-	conn, more := <-ep.connections
-	if more {
-		// never fail
-		return conn, nil
-	}
-	return nil, errors.New("endpint closed!")
 }
 
 func (ep *LocalEndPoint) Close() error {
