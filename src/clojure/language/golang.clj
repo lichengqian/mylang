@@ -339,8 +339,11 @@
 
 (defn emit-doc [doc]
   (when doc
-    (str "// " doc "\n")))
-
+    (->> doc
+         string/split-lines
+         (map #(str "// " % "\n"))
+         string/join)))
+        
 (defmethod emit-struct ::golang
   [name doc? fields]
   (assert (symbol? name))
@@ -402,6 +405,11 @@
     "Map" (str "map[" (emit-type (first args)) "]*" (emit-type (second args)))
     "Set" (str "map[" (emit-type (first args)) "]struct{}")
     "IO" (str "(" (emit-type (first args)) ", error)")
+    "MVar" (string/join "\n"
+            ["struct {"
+             (str "  value " (emit-type (first args)))
+             "  lock sync.Mutex"
+             "}"])
     (->> args
         (map emit-type)
         (string/join " ")

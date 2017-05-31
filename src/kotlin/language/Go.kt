@@ -66,6 +66,7 @@ data class Golang(val emit: IFn, val emitType: IFn, val goImport: IFn) {
             render { match(emit, name, values) }
 
     fun Render.type(t1: Any, t2: Any) = +"type $t1 ${emitType.invoke(t2)} \n"
+    fun Render.declInterface(t1: Any, init: Render.() ->Unit) = "type $t1 interface".brace(init)
 
     private fun Render.structField(v: Any, t: Any) {
         when {
@@ -91,17 +92,10 @@ data class Golang(val emit: IFn, val emitType: IFn, val goImport: IFn) {
             }
 
     fun Render.enum(name: Any, values: Iterable<Any>) {
-        type(name, "uint8".symbol)
-        enumStruct(name, values)
-        newline()
-        func("(rs $name) String() string") {
-            switch("rs") {
-                for (v in values) {
-                    +"case ${v.tag}: return \"${v.constructor}\""
-                }
-                +"""default: return "${name}Unknown" // Cannot panic."""
-            }
+        declInterface(name) {
+            +"tag$name() uint8"
         }
+        enumStruct(name, values)
         newline()
     }
 
@@ -112,7 +106,6 @@ data class Golang(val emit: IFn, val emitType: IFn, val goImport: IFn) {
             var args = mutableListOf<String>()
             var params = StringBuilder()
             "type $constructor struct".brace {
-                +name.toString()
                 var i = 1
                 while (fields != null) {
                     val t = emitType.invoke(fields.first())
@@ -122,17 +115,33 @@ data class Golang(val emit: IFn, val emitType: IFn, val goImport: IFn) {
                     fields = fields.next()
                 }
             }
-            // new function
-            func("New$constructor(${args.joinToString()}) *$constructor") {
-                +"return &$constructor{${vs.tag}$params}"
+            // tag function
+            "func (p *$constructor) tag$name() uint8".brace {
+                +"return $idx"
+            }
+            // string function
+            "func (p *$constructor) String() string".brace {
+                +"return \"$constructor\""
             }
         }
 
         fun enumValue(idx: Int, value: Any) {
-            +"const ${value.tag} = $name($idx)"
             when (value) {
                 is IPersistentList ->
                     enumValueList(idx, value.seq())
+                else -> {
+                    val constructor = value
+                    +"type $constructor struct{}"
+                    // tag function
+                    "func (p $constructor) tag$name() uint8".brace {
+                        +"return $idx"
+                    }
+                    // string function
+                    "func (p $constructor) String() string".brace {
+                        +"return \"$constructor\""
+                    }
+                }
+
             }
         }
 
