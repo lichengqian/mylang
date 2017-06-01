@@ -230,7 +230,7 @@ func handleIncomingMessage(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEndP
 			continue
 		}
 
-		switch decodeControlHeader(lcid).(type) {
+		switch decodeControlHeader(uint8(uint32(lcid))).(type) {
 		case CreateNewConnection:
 			cid, err := ReadUint32(sock)
 			if err != nil {

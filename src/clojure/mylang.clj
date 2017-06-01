@@ -80,7 +80,7 @@
     :internal true}
   special-forms
   #{'ns 'import 'struct 'type 'enum 'fn 'fn- 'val 'val- 'main
-    'if 'match 'aget 'aset 'get 'return 'set!
+    'if 'match 'aget 'aset 'get 'return 'set! 'native
     'local 'literally 'deref 'do 'str 'quoted 'apply
     'file-exists? 'directory? 'symlink? 'readable? 'writeable? 'empty?
     'not 'println 'print 'group 'pipe 'chain-or
@@ -470,6 +470,15 @@
 (defn add-import [s]
   (->> (update-in *compiler-context* [:import] conj s)
     ; (assoc *compiler-context* :import)
+    (set! *compiler-context*))
+  "")
+
+(defn get-enum [n]
+  (get-in *compiler-context* [:enums (name n)]))
+
+(defn add-enum [n fields]
+  ; (println "add-enum" n fields)
+  (->> (assoc-in *compiler-context* [:enums (name n)] fields)
     (set! *compiler-context*))
   "")
 

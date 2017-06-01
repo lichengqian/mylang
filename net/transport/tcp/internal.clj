@@ -8,6 +8,9 @@
     ProbeSocket
     ProbeSocketAct)
 
+(encode! ControlHeader)
+(decode! ControlHeader)
+    
 (enum ConnectionRequestResponse
     "Response sent by /B/ to /A/ when /A/ tries to connect"
     ConnectionRequestAccepted
@@ -15,3 +18,5 @@
     ConnectionRequestCrossed
     ConnectionRequestHostMismatch)
 
+(encode! ConnectionRequestResponse)
+(decode! ConnectionRequestResponse)

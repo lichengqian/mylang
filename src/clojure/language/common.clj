@@ -72,6 +72,10 @@
   "Emit a function call"
   (fn [name & args] *script-language*))
 
+(defmulti emit-macro-call
+  "Emit a macro call"
+  (fn [name & args] [*script-language*, name]))
+
 (defmulti emit-infix
   (fn [type [operator & args]] *script-language*))
 
@@ -139,6 +143,10 @@
   (str "(" (or (and (:file m) (.getName (file (:file m)))) "UNKNOWN")
        ":" (:line m) ")"))
 
+(defn- is-macro [fn]
+  (and  (symbol? fn)
+        (string/ends-with? (name fn) "!")))
+
 (defmethod emit-special [::common-impl 'invoke]
   [type form]
   (let [[fn-name-or-map & args] form]
@@ -185,7 +193,9 @@
                      (map emit)
                      (filter (complement string/blank?))
                      doall))]
-       (apply emit-function-call fn-name-or-map argseq)))))
+       (if (is-macro fn-name-or-map)
+          (apply emit-macro-call fn-name-or-map argseq)
+          (apply emit-function-call fn-name-or-map argseq))))))
 
 (defn- emit-s-expr [expr]
   (if (symbol? (first expr))
@@ -212,6 +222,10 @@
   [[c & args]]
   (emit-type-constructor c args))
 
+(defmethod emit-type [::common-impl java.lang.String]
+  [t]
+  (str t))
+
 (defmethod emit-type :default
   [t] 
   ; (println "emit default type " t)
@@ -232,6 +246,13 @@
 (defmethod emit-special [::common-impl 'apply] [type [apply & exprs]]
   (emit-s-expr (spread exprs)))
 
+(defmethod emit-special [::common-impl 'native] [_ [_ & exprs]]
+  (let [lang (first exprs)
+        code (second exprs)]
+    (if (= lang (keyword (name *script-language*)))
+      (string/split-lines code)
+      (str "// not for lang " lang))))
+
 (defn check-doc [expr]
   (if (string? (first expr))
     [(first expr) (next expr)]
@@ -248,6 +269,7 @@
 
 (defmethod emit-special [::common-impl 'enum] [_ [_ name & expr]]
   (let [[doc? fields] (check-doc expr)]
+    (add-enum name fields)
     (emit-enum name doc? fields)))
 
 ;;; Script combiner implementations

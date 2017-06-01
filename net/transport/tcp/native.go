@@ -91,14 +91,6 @@ func forkServer(lAddr string, handler func(net.Conn)) error {
 	return nil
 }
 
-func decodeControlHeader(lcid uint32) ControlHeader {
-	switch uint8(lcid) {
-	case 0:
-		return CreateNewConnection{}
-	}
-	return nil
-}
-
 //-----------------------------------------------------------------------------
 // Debugging                                                                 --
 //-----------------------------------------------------------------------------
