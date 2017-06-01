@@ -21,7 +21,7 @@
     localAddress EndPointAddress
     localState  (MVar LocalEndPointState)
     localQueue   (Chan Event)
-    closeLocalEndPoint "func() error")
+    closeLocalEndPoint Closer)
 
 (enum LocalEndPointState
     (LocalEndPointValid ValidLocalEndPointState)
@@ -35,7 +35,8 @@
 (struct RemoteEndPoint
     remoteAddress EndPointAddress
     remoteState (MVar RemoteState)
-    remoteId    HeavyweightConnectionId)
+    remoteId    HeavyweightConnectionId
+    remoteScheduled     (Chan Action))
 
 (enum RequestedBy
     RequestedByUs
@@ -43,9 +44,9 @@
 
 (enum RemoteState
     (RemoteEndPointInvalid ConnectErrorCode String)
-    (RemoteEndPointInit Lock Lock RequestedBy)
+    (RemoteEndPointInit Notifier Notifier RequestedBy)
     (RemoteEndPointValid ValidRemoteEndPointState)
-    (RemoteEndPointClosing Lock ValidRemoteEndPointState)
+    (RemoteEndPointClosing Notifier ValidRemoteEndPointState)
     RemoteEndPointClosed
     (RemoteEndPointFailed Error))
 
@@ -58,25 +59,27 @@
     remoteSendLock Lock)
     
 
+;;; transport definition
 
 (enum Event
-    "Event on an endpoint.
-    test multiline comment"
+    "Event on an endpoint."
     (Received ConnectionId ByteString)
     (ConnectionClosed ConnectionId)
     (ConnectionOpened ConnectionId EndPointAddress)
     EndPointClosed
     (ErrorEvent Error string))
 
+(enum NewEndPointErrorCode
+    "Errors during the creation of an endpoint"
+    NewEndPointInsufficientResources
+    NewEndPointFailed)
+
 (enum ConnectErrorCode
+    "Connection failure"
     ConnectNotFound
     ConnectInsufficientResources
     ConnectTimeout
     ConnectFailed)
-
-(enum NewEndPointErrorCode
-    NewEndPointInsufficientResources
-    NewEndPointFailed)
 
 (enum EventErrorCode
     "Error codes used when reporting errors to endpoints (through receive)"

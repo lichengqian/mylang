@@ -14,6 +14,22 @@ type EndPointAddress struct {
 	epid EndPointId
 }
 
+type Closer func() error
+type Action func()
+type Notifier chan struct{}
+
+func newNotifier() Notifier {
+	return make(chan struct{}, 1)
+}
+
+func wait(n Notifier) {
+	<-n
+}
+
+func notify(n Notifier) {
+	n <- struct{}{}
+}
+
 func (tp TransportAddr) encodeEndPointAddress(epid EndPointId) *EndPointAddress {
 	return &EndPointAddress{tp, epid}
 }
@@ -89,6 +105,31 @@ func forkServer(lAddr string, handler func(net.Conn)) error {
 		}
 	}()
 	return nil
+}
+
+// | Establish a connection to a remote endpoint
+//
+// Maybe throw a TransportError
+//
+// If a socket is created and returned (Right is given) then the caller is
+// responsible for eventually closing the socket and filling the MVar (which
+// is empty). The MVar must be filled immediately after, and never before,
+// the socket is closed.
+func socketToEndPoint(ourAddress EndPointAddress, theirAddress EndPointAddress) (net.Conn, ConnectionRequestResponse, error) {
+	sock, err := net.Dial("tcp", string(theirAddress.TransportAddr))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	//TODO:1663
+	WriteUint32(uint32(theirAddress.epid), sock)
+	//write our address
+	response, err := ReadUint32(sock)
+	if err != nil {
+		return nil, nil, err
+	}
+	rsp := decodeConnectionRequestResponse(uint8(response))
+	return sock, rsp, nil
 }
 
 //-----------------------------------------------------------------------------
