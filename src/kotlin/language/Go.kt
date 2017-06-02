@@ -199,5 +199,13 @@ data class Golang(val emit: IFn, val emitType: IFn, val goImport: IFn) {
             }
         }
 
+    fun emitTest(name: Any, body: Iterable<Any>) = 
+        render {
+            "func Test${name.toString().capitalize()}(t *testing.T)".brace {
+                for (expr in body) {
+                    +"${emit.invoke(expr)}"
+                }
+            }
+        }
 }
 

@@ -107,20 +107,25 @@
 (defmethod emit-infix ::golang [type [operator & args]]
   (when (< (count args) 2)
     (throw (Exception. "Less than 2 infix arguments not supported yet.")))
+  
   (let [[open close] (cond
-                       (logical-operator? operator) ["[ " " ]"]
-                       (arithmetic-operators operator) ["(" ")"]
-                       :else ["" ""])
+                      (logical-operator? operator) ["[ " " ]"]
+                      (arithmetic-operators operator) ["(" ")"]
+                      :else ["" ""])
         quoting (if (quoted-operator? operator) quoted identity)]
     (str open (emit-quoted-if-not-subexpr quoting (first args)) " "
-         (get infix-conversions operator operator)
-         " " (emit-quoted-if-not-subexpr quoting (second args)) close)))
+        (get infix-conversions operator operator)
+        " " (emit-quoted-if-not-subexpr quoting (second args)) close)))
 
 (defemit-special ::golang
   'ns [path] (set-ns (emit path))
   'import [path] (go-import path)
-  'not [expr] (str "!(" (emit expr) ")"))
-  
+  'not [expr] (str "!(" (emit expr) ")")
+  '<- [v expr]
+    (str (emit v)
+        ", err := "
+        (emit expr)
+        "\n  if err != nil {\n t.Error(err)\n return\n }"))
 
 (defn- check-symbol [var-name]
   (when (re-matches #".*-.*" var-name)
@@ -366,10 +371,37 @@
        (emit-do body)
        "}\n\n"))
 
+(defmethod emit-special [::golang 'let]
+  [_ [_ & body]]
+  (string/join "\n"
+    (for [[var expr] (partition 2 body)]
+        (str var " := " (emit expr)))))
+  
+(defmethod emit-special [::golang 'let-fn]
+  [_ [_ n & body]]
+  (str n " := func() {\n" (emit-do body) "}"))
+  
+(defmethod emit-special [::golang 'go]
+  [_ [_ & body]]
+  (str "go " (emit-do body)))
+  
 (defmethod emit-special [::golang 'main]
   [_ [_  & body]]
   (set-ns "main")
   (emit-function 'main nil [] body))
+
+(defmethod emit-special [::golang 'test]
+  [_ [_ n & body]]
+  (go-import "testing")
+  (.emitTest golang n body))
+
+(defmethod emit-special [::golang 'tlog]
+  [_ [_ & args]]
+  (str "t.Log("
+    (string/join ", "
+      (for [arg args]
+        (emit arg)))
+    ")"))
 
 ;; We would like to be able to add source comments for each argument of a
 ;; function inline, but this is not possible (only works in a |, || or &&
@@ -378,7 +410,7 @@
   [name & args]
   (if (seq args)
     (str (emit name) "(" (reduce str (interpose "," args)) ")")
-    (emit name)))
+    (str (emit name) "()")))
 
 (defmethod emit-type-builtin ::golang
   [t]
