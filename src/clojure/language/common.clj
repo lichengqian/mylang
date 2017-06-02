@@ -206,6 +206,13 @@
        (emit-special 'dot-method expr1)
 
        (special-form? head) (emit-special head expr1)
+
+       (string/ends-with? (str head) "<-")
+       (emit-special 'writechan expr1)
+
+       (string/starts-with? (str head) "<-")
+       (emit-special 'readchan expr1)
+       
        (infix-operator? head) (emit-infix head expr1)
        (macro? head) (emit (macroexpand-1 expr))
        :else (emit-special 'invoke expr)))
