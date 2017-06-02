@@ -121,7 +121,7 @@
   'ns [path] (set-ns (emit path))
   'import [path] (go-import path)
   'not [expr] (str "!(" (emit expr) ")")
-  'chan [t] (str "make(chan " (emit t) ")")
+  'chan [t n] (str "make(chan " (emit t) ", " (emit n) ")")
   '<- [v expr]
     (str (emit v)
         ", err := "
@@ -129,7 +129,7 @@
         "\n  if err != nil {\n t.Error(err)\n return\n }"))
 
 (defmethod emit-special [::golang 'readchan] [_ [c v]]
-  (str (emit v) " " (emit c)))
+  (str (emit v) " := " (emit c)))
 
 (defmethod emit-special [::golang 'writechan] [_ [c v]]
   (str (emit c) " " (emit v)))
@@ -184,11 +184,11 @@
 
 (defmethod emit-special [::golang 'println] [type [println & args]]
   (go-import "fmt")
-  (str "fmt.Println(" (string/join " " (map emit args)) ")"))
+  (str "fmt.Println(" (string/join ", " (map emit args)) ")"))
 
 (defmethod emit-special [::golang 'print] [type [print & args]]
   (go-import "fmt")
-  (str "fmt.Print(" (string/join " " (map emit args)) ")"))
+  (str "fmt.Print(" (string/join ", " (map emit args)) ")"))
 
 (defemit ::golang expr
   nil "nil"
