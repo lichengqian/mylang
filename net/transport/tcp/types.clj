@@ -69,10 +69,10 @@
     EndPointClosed
     (ErrorEvent Error string))
 
-(enum NewEndPointErrorCode
-    "Errors during the creation of an endpoint"
-    NewEndPointInsufficientResources
-    NewEndPointFailed)
+; (enum NewEndPointErrorCode
+;     "Errors during the creation of an endpoint"
+;     NewEndPointInsufficientResources
+;     NewEndPointFailed)
 
 (enum ConnectErrorCode
     "Connection failure"

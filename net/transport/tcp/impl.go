@@ -9,7 +9,7 @@ import (
 
 func createTCPTransport(lAddr string) (*TCPTransport, error) {
 	state := &TransPortValid{ValidTransportState{
-		_localEndPoints: make(map[EndPointId]*LocalEndPoint, 10),
+		_localEndPoints: make(map[EndPointId]*LocalEndPoint),
 		_nextEndPointId: 0,
 	}}
 
@@ -35,6 +35,9 @@ func createTCPTransport(lAddr string) (*TCPTransport, error) {
 //------------------------------------------------------------------------------
 // Incoming requests                                                          --
 //------------------------------------------------------------------------------
+
+// | Handle a connection request (that is, a remote endpoint that is trying to
+// establish a TCP connection with us)
 func (tp *TCPTransport) handleConnectionRequest(conn net.Conn) {
 	// get endpoint id
 	ourEndPointID, err := ReadUint32(conn)
@@ -611,7 +614,7 @@ func (ourEndPoint *LocalEndPoint) removeRemoteEndPoint(theirEndPoint *RemoteEndP
 //
 // May throw a TransportError NewEndPointErrorCode exception if the transport
 // is closed.
-func (tp *TCPTransport) createLocalEndPoint(epid EndPointId) (*LocalEndPoint, NewEndPointErrorCode) {
+func (tp *TCPTransport) createLocalEndPoint(epid EndPointId) (*LocalEndPoint, error) {
 	tp.transportState.lock.Lock()
 	defer tp.transportState.lock.Unlock()
 
@@ -621,8 +624,7 @@ func (tp *TCPTransport) createLocalEndPoint(epid EndPointId) (*LocalEndPoint, Ne
 		endpoints := vst._localEndPoints
 
 		if _, ok := endpoints[epid]; ok {
-			// println("endpoint already exist!")
-			return nil, NewEndPointFailed{}
+			return nil, errors.New("endpoint already exist")
 		}
 
 		st := &LocalEndPointValid{ValidLocalEndPointState{
@@ -644,9 +646,9 @@ func (tp *TCPTransport) createLocalEndPoint(epid EndPointId) (*LocalEndPoint, Ne
 		}
 		return endpoints[epid], nil
 	case TransportClosed:
-		return nil, NewEndPointFailed{}
+		return nil, errors.New("transport closed")
 	default:
-		return nil, NewEndPointFailed{}
+		return nil, errors.New("new endpoint failed")
 	}
 }
 
