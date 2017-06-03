@@ -3,8 +3,11 @@ package tcp
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"net"
+	"strconv"
+	"strings"
 )
 
 type TransportAddr string
@@ -30,18 +33,33 @@ func notify(n Notifier) {
 	n <- struct{}{}
 }
 
-func (tp TransportAddr) encodeEndPointAddress(epid EndPointId) *EndPointAddress {
-	return &EndPointAddress{tp, epid}
+func encodeEndPointAddress(ep EndPointAddress) []byte {
+	s := ep.String()
+	return []byte(s)
 }
 
-func decodeEndPointAddress(bs []byte) *EndPointAddress {
-	//TODO: decode endpoint address
-	return nil
+func decodeEndPointAddress(bs []byte) (*EndPointAddress, error) {
+	s := string(bs)
+	fmt.Println("before decode:", s)
+	i := strings.LastIndex(s, ":")
+	addr := TransportAddr(s[:i])
+	epid, err := strconv.Atoi(s[(i + 1):])
+	if err != nil {
+		return nil, err
+	}
+	ep := EndPointAddress{addr, EndPointId(uint32(epid))}
+	return &ep, nil
 }
 
 func WriteUint32(i uint32, w io.Writer) (int, error) {
 	var buf [4]byte
 	binary.BigEndian.PutUint32(buf[:], uint32(i))
+	return w.Write(buf[:])
+}
+
+func WriteWithLen(buf []byte, w io.Writer) (int, error) {
+	binary.BigEndian.PutUint32(buf[:], uint32(len(buf)))
+	WriteUint32(uint32(len(buf)), w)
 	return w.Write(buf[:])
 }
 
@@ -124,12 +142,29 @@ func socketToEndPoint(ourAddress EndPointAddress, theirAddress EndPointAddress) 
 	//TODO:1663
 	WriteUint32(uint32(theirAddress.epid), sock)
 	//write our address
+	WriteWithLen(encodeEndPointAddress(ourAddress), sock)
 	response, err := ReadUint32(sock)
 	if err != nil {
+		defer sock.Close()
 		return nil, nil, err
 	}
 	rsp := decodeConnectionRequestResponse(uint8(response))
 	return sock, rsp, nil
+}
+
+// for test only
+func socketToEndPoint_(ourAddress EndPointAddress, theirAddress EndPointAddress) (net.Conn, error) {
+	sock, rsp, err := socketToEndPoint(ourAddress, theirAddress)
+	if err != nil {
+		return nil, err
+	}
+	switch rsp.(type) {
+	case ConnectionRequestAccepted:
+		return sock, nil
+	default:
+		defer sock.Close()
+		return nil, errors.New(rsp.String())
+	}
 }
 
 //-----------------------------------------------------------------------------

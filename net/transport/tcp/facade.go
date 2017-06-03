@@ -20,8 +20,12 @@ func CreateTransport(lAddr string) (Transport, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (addr *EndPointAddress) String() string {
+func (addr EndPointAddress) String() string {
 	return fmt.Sprintf("%s:%d", addr.TransportAddr, addr.epid)
+}
+
+func (ep *LocalEndPoint) Receive() Event {
+	return <-ep.localQueue
 }
 
 func (ep *LocalEndPoint) Close() error {

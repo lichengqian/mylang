@@ -3,6 +3,7 @@ package tcp
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"net"
 	"sync"
 )
@@ -51,15 +52,17 @@ func (tp *TCPTransport) handleConnectionRequest(conn net.Conn) {
 		conn.Close()
 		return
 	}
-	theirAddress := decodeEndPointAddress(bs)
-	println(theirAddress)
+	theirAddress, err := decodeEndPointAddress(bs)
+	if err != nil {
+		conn.Close()
+		return
+	}
+	fmt.Println("handleConnectionRequest:", theirAddress)
 	if !checkPeerHost(conn, theirAddress) {
 		writeConnectionRequestResponse(ConnectionRequestHostMismatch{}, conn)
 		conn.Close()
 		return
 	}
-
-	// ourAddress := tp.transportAddr.encodeEndPointAddress(ourEndPointID)
 
 	// dispatch to endpoint
 	// we need this clojure to avoid dead lock!!!
@@ -130,10 +133,11 @@ func handleIncomingMessages(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEnd
 
 	// Deal with a premature exit
 	prematureExit := func(err error) {
-		theirEndPoint.remoteState.lock.Lock()
-		defer theirEndPoint.remoteState.lock.Unlock()
+		theirState := &theirEndPoint.remoteState
+		theirState.lock.Lock()
+		defer theirState.lock.Unlock()
 
-		switch theirEndPoint.remoteState.value.(type) {
+		switch theirState.value.(type) {
 		case *RemoteEndPointInvalid, *RemoteEndPointInit, RemoteEndPointClosed:
 			ourEndPoint.relyViolation("handleIncomingMessages:prematureExi")
 		case *RemoteEndPointValid:
@@ -358,7 +362,6 @@ func handleIncomingMessages(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEnd
 	// user exception which is then caught and handled the same way as an
 	// exception thrown by 'recv'.
 
-	//TODO: HERE
 	err = func() error {
 		for {
 			lcid, err := ReadUint32(sock)
@@ -665,6 +668,7 @@ func (tp *TCPTransport) closeLocalEndPoint(epid EndPointId) error {
 	return errors.New("endpoinyt not exist!")
 }
 
+//TODO: return Writer/Closer
 func (ep *LocalEndPoint) connect(remoteEP EndPointAddress) (net.Conn, error) {
 	conn, err := net.Dial("tcp", string(remoteEP.TransportAddr))
 	if err != nil {
