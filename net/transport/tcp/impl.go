@@ -669,7 +669,7 @@ func (tp *TCPTransport) closeLocalEndPoint(epid EndPointId) error {
 }
 
 //TODO: return Writer/Closer
-func (ep *LocalEndPoint) connect(remoteEP EndPointAddress) (net.Conn, error) {
+func (ep *LocalEndPoint) connect(remoteEP EndPointAddress) (Connection, error) {
 	conn, err := net.Dial("tcp", string(remoteEP.TransportAddr))
 	if err != nil {
 		return nil, err

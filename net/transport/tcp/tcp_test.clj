@@ -7,56 +7,55 @@
         clientAddr (chan EndPointAddress 1)
         serverAddr (chan EndPointAddress 1)
         serverDone (newNotifier))
-    (tlog "testEarlyDisconnect")
-
+    (println "testEarlyDisconnect")
 
     (let-fn server
-        (tlog "server")
-        (<- tp (createTCPTransport "127.0.0.1:9999"))
-        (<- ep (tp.createLocalEndPoint 1000))
-        (println ep.localAddress)
-        (serverAddr<- ep.localAddress)
+        (println "server")
+        (<- tp (CreateTransport "127.0.0.1:9999"))
+        (<- ep (tp.NewEndPoint 1000))
+        (println "server" (ep.Address))
+        (serverAddr<- (ep.Address))
         ;; TEST 1: they connect to us, then drop the connection
         (do
             (let event (ep.Receive))
-            (println event)
+            (println "server" event)
             (assertConnectionOpend t event)
             (let event2 (ep.Receive))
-            (println event2))
+            (println "server" event2))
 
         ;; TEST 2: after they dropped their connection to us, we now try to
         ;; establish a connection to them. This should re-establish the broken
         ;; TCP connection.)
         (<-clientAddr theirAddr)
-        (println "Trying to connect to client" theirAddr)
-        (<- conn (ep.connect theirAddr))
-        (println conn)
+        (println "server" "Trying to connect to client" theirAddr)
+        (<- conn (ep.Dial theirAddr))
+        (println "server" conn)
 
         ;; TEST 3: To test the connection, we do a simple ping test; as before,
         ;; however, the remote client won't close the connection nicely but just
         ;; closes the socket)
         (do
-            (send conn "ping")
+            (Send conn "ping")
 
             (let event3 (ep.Receive))
-            (println event3)
+            (println "server" event3)
                 
             (let event4 (ep.Receive))
-            (println event4)
+            (println "server" event4)
 
             (let event5 (ep.Receive))
-            (println event5))
-
+            (println "server" event5))
         
         ;; TEST 4: A subsequent send on an already-open connection will now break
-        (send conn "ping2")
+        (Send conn "ping2")
 
         (notify serverDone)
         (println "server exist"))
+
     (let-fn client
-        (tlog "client")
+        (println "client")
         (<- ourAddr (mockListener "127.0.0.1:8888"))
-        (println ourAddr)
+        (println "client" ourAddr)
 
         (clientAddr<- ourAddr)
         (<-serverAddr theirAddr)
@@ -69,6 +68,7 @@
         ;; The server should receive an error event)
         (sock.Close)
         (println "client exit"))
+
     (go (server))
     (go (client))
     (wait serverDone))

@@ -3,25 +3,54 @@ package tcp
 import (
 	"errors"
 	"fmt"
+	"io"
 	"net"
 )
 
 type Transport interface {
-	Listen(EndPointId) (EndPoint, error)
+	io.Closer
+	NewEndPoint(EndPointId) (EndPoint, error)
 }
 
 type EndPoint interface {
-	net.Listener
-	Dial(remoteEP EndPointAddress) (net.Conn, error)
+	io.Closer
+	// | Create a new lightweight connection.
+	Dial(remoteEP EndPointAddress) (Connection, error)
+	// | Endpoints have a single shared receive queue.
+	Receive() Event
+	// | EndPointAddress of the endpoint.
+	Address() EndPointAddress
+}
+
+type Connection interface {
+	io.Writer
+	io.Closer
+}
+
+func Send(conn Connection, msg string) error {
+	_, err := conn.Write([]byte(msg))
+	return err
 }
 
 func CreateTransport(lAddr string) (Transport, error) {
-	// return createTCPTransport(lAddr)
-	return nil, errors.New("not implemented")
+	return createTCPTransport(lAddr)
+	// return nil, errors.New("not implemented")
+}
+
+func (tp *TCPTransport) NewEndPoint(epid EndPointId) (EndPoint, error) {
+	return tp.createLocalEndPoint(epid)
 }
 
 func (addr EndPointAddress) String() string {
 	return fmt.Sprintf("%s:%d", addr.TransportAddr, addr.epid)
+}
+
+func (tp *TCPTransport) Close() error {
+	return errors.New("not implemented")
+}
+
+func (ep *LocalEndPoint) Address() EndPointAddress {
+	return ep.localAddress
 }
 
 func (ep *LocalEndPoint) Receive() Event {
@@ -37,7 +66,7 @@ func (ep *LocalEndPoint) Addr() net.Addr {
 	return &ep.localAddress
 }
 
-func (ep *LocalEndPoint) Dial(remoteEP EndPointAddress) (net.Conn, error) {
+func (ep *LocalEndPoint) Dial(remoteEP EndPointAddress) (Connection, error) {
 	return ep.connect(remoteEP)
 }
 
