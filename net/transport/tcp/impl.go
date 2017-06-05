@@ -1,7 +1,6 @@
 package tcp
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
 	"net"
@@ -31,6 +30,98 @@ func createTCPTransport(lAddr string) (*TCPTransport, error) {
 		return nil, err
 	}
 	return tp, nil
+}
+
+//------------------------------------------------------------------------------
+// API functions                                                              --
+//------------------------------------------------------------------------------
+
+// | Connnect to an endpoint
+func (ourEndPoint *LocalEndPoint) apiConnect(theirAddress EndPointAddress) (*LocalConnection, error) {
+	//TODO: connect to self 756
+
+	err := ourEndPoint.resetIfBroken(theirAddress)
+	if err != nil {
+		return nil, err
+	}
+	theirEndPoint, connId, err := ourEndPoint.createConnectionTo(theirAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	if theirEndPoint == nil {
+		panic("apiConnect failed!")
+	}
+
+	return &LocalConnection{
+		close: func() error {
+			return ourEndPoint.apiClose(theirEndPoint, connId)
+		},
+		send: func(msg []byte) (int, error) {
+			return ourEndPoint.apiSend(theirEndPoint, connId, msg)
+		},
+	}, nil
+}
+
+// | Close a connection
+func (ourEndPoint *LocalEndPoint) apiClose(theirEndPoint *RemoteEndPoint, connId LightweightConnectionId) error {
+	theirState := theirEndPoint.remoteState
+
+	conn := func() net.Conn {
+
+		theirState.lock.Lock()
+		defer theirState.lock.Unlock()
+
+		switch st := theirState.value.(type) {
+		case *RemoteEndPointValid:
+			vst := &st._1
+			vst._remoteOutgoing--
+			//sched action
+			return vst.remoteConn
+		default:
+			return nil
+		}
+	}()
+
+	if conn != nil {
+		WriteUint32(uint32(CloseConnection{}.tagControlHeader()), conn)
+		WriteUint32(uint32(connId), conn)
+	}
+	ourEndPoint.closeIfUnused(theirEndPoint)
+	return nil
+}
+
+// | Send data across a connection
+func (ourEndPoint *LocalEndPoint) apiSend(theirEndPoint *RemoteEndPoint, connId LightweightConnectionId, msg []byte) (int, error) {
+	fmt.Println("apiSend", connId)
+	action, err := func() (func(), error) {
+		theirState := &theirEndPoint.remoteState
+		theirState.lock.Lock()
+		theirState.lock.Unlock()
+
+		switch st := theirState.value.(type) {
+		case *RemoteEndPointInvalid, *RemoteEndPointInit:
+			ourEndPoint.relyViolation("apiSend")
+		case *RemoteEndPointValid:
+			vst := &st._1
+			conn := vst.remoteConn
+			return func() {
+				WriteUint32(uint32(connId), conn)
+				WriteWithLen(msg, conn)
+			}, nil
+		case *RemoteEndPointClosing, RemoteEndPointClosed:
+			ourEndPoint.relyViolation("apiSend")
+		case *RemoteEndPointFailed:
+			return nil, st._1
+		}
+		return nil, errors.New("apiSend error")
+	}()
+
+	if err != nil {
+		return 0, err
+	}
+	action()
+	return len(msg), nil
 }
 
 //------------------------------------------------------------------------------
@@ -99,6 +190,12 @@ func (tp *TCPTransport) handleConnectionRequest(conn net.Conn) {
 // endpoint handle incoming connection
 func (ourEndPoint *LocalEndPoint) handleConnectionRequest(theirAddress *EndPointAddress, conn net.Conn) {
 	// This runs in a thread that will never be killed
+	err := ourEndPoint.resetIfBroken(*theirAddress)
+	if err != nil {
+		fmt.Println(err)
+		conn.Close()
+		return
+	}
 	theirEndPoint, isNew, err := ourEndPoint.findRemoteEndPoint(*theirAddress, RequestedByThem{})
 	if err != nil {
 		println(err)
@@ -430,18 +527,22 @@ func handleIncomingMessages(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEnd
 //
 // May throw a TransportError ConnectErrorCode exception.
 func (ourEndPoint *LocalEndPoint) createConnectionTo(theirAddress EndPointAddress) (*RemoteEndPoint, LightweightConnectionId, error) {
-	for {
+	theirEndPoint, isNew, err := ourEndPoint.findRemoteEndPoint(theirAddress, RequestedByUs{})
+	if err != nil {
+		return nil, firstNonReservedLightweightConnectionId, err
+	}
 
-		theirEndPoint, isNew, err := ourEndPoint.findRemoteEndPoint(theirAddress, RequestedByUs{})
+	if isNew {
+		rsp, err := ourEndPoint.setupRemoteEndPoint(theirEndPoint)
+		fmt.Println("createConnectionTo ", rsp, err)
+		// TODO: handle response?
 		if err != nil {
-			return nil, firstNonReservedLightweightConnectionId, err
+			return theirEndPoint, firstNonReservedLightweightConnectionId, err
 		}
-
-		if isNew {
-			ourEndPoint.setupRemoteEndPoint(theirEndPoint)
-			// continue
-		}
-		// 'findRemoteEndPoint' will have increased 'remoteOutgoing'
+	}
+	// 'findRemoteEndPoint' will have increased 'remoteOutgoing'
+	var action func()
+	connId, err := func() (LightweightConnectionId, error) {
 		theirState := &theirEndPoint.remoteState
 		theirState.lock.Lock()
 		defer theirState.lock.Unlock()
@@ -450,17 +551,26 @@ func (ourEndPoint *LocalEndPoint) createConnectionTo(theirAddress EndPointAddres
 		case *RemoteEndPointValid:
 			vst := &st._1
 			connId := vst._remoteNextConnOutId
-			//TODO schedule
 			vst._remoteNextConnOutId = connId + 1
-			return theirEndPoint, connId, nil
+			//TODO schedule
+			conn := vst.remoteConn
+			action = func() {
+				WriteUint32(uint32(CreateNewConnection{}.tagControlHeader()), conn)
+				WriteUint32(uint32(connId), conn)
+			}
+			return connId, nil
 		case *RemoteEndPointInvalid:
-			return nil, 0, errors.New(st._1.String())
+			return 0, errors.New(st._1.String())
 		case *RemoteEndPointFailed:
-			return nil, 0, st._1
-		default:
-			ourEndPoint.relyViolation("createConnectionTo")
+			return 0, st._1
 		}
+		return 0, errors.New("createConnectionTo")
+	}()
+
+	if action != nil {
+		action()
 	}
+	return theirEndPoint, connId, err
 }
 
 // | Set up a remote endpoint
@@ -569,6 +679,79 @@ func (ourEndPoint *LocalEndPoint) findRemoteEndPoint(theirAddress EndPointAddres
 	}
 }
 
+// | Send a CloseSocket request if the remote endpoint is unused
+func (ourEndPoint *LocalEndPoint) closeIfUnused(theirEndPoint *RemoteEndPoint) {
+	theirState := &theirEndPoint.remoteState
+
+	action := func() func() {
+		theirState.lock.Lock()
+		theirState.lock.Unlock()
+
+		switch st := theirState.value.(type) {
+		case *RemoteEndPointValid:
+			vst := &st._1
+			if vst._remoteOutgoing == 0 && len(vst._remoteIncoming) == 0 {
+				theirState.value = &RemoteEndPointClosing{newNotifier(), *vst}
+				conn := vst.remoteConn
+				return func() {
+					WriteUint32(uint32(CloseSocket{}.tagControlHeader()), conn)
+					WriteUint32(uint32(vst._remoteLastIncoming), conn)
+				}
+			}
+		}
+		return nil
+	}()
+
+	if action != nil {
+		action()
+	}
+}
+
+// | Reset a remote endpoint if it is in Invalid mode
+//
+// If the remote endpoint is currently in broken state, and
+//
+//   - a user calls the API function 'connect', or and the remote endpoint is
+//   - an inbound connection request comes in from this remote address
+//
+// we remove the remote endpoint first.
+//
+// Throws a TransportError ConnectFailed exception if the local endpoint is
+// closed.
+func (ourEndPoint *LocalEndPoint) resetIfBroken(theirAddress EndPointAddress) error {
+	theirEndPoint, err := func() (*RemoteEndPoint, error) {
+		ourState := &ourEndPoint.localState
+		ourState.lock.Lock()
+		defer ourState.lock.Unlock()
+
+		switch st := ourState.value.(type) {
+		case *LocalEndPointValid:
+			vst := &st._1
+			return vst._localConnections[theirAddress], nil
+		default:
+			return nil, errors.New("EndPoint closed")
+		}
+	}()
+
+	if err != nil {
+		return err
+	}
+
+	if theirEndPoint == nil {
+		return nil
+	}
+
+	theirState := &theirEndPoint.remoteState
+	theirState.lock.Lock()
+	theirState.lock.Unlock()
+
+	switch theirState.value.(type) {
+	case *RemoteEndPointInvalid, *RemoteEndPointFailed:
+		ourEndPoint.removeRemoteEndPoint(theirEndPoint)
+	}
+	return nil
+}
+
 // Resolve an endpoint currently in 'Init' state
 func (ourEndPoint *LocalEndPoint) resolveInit(theirEndPoint *RemoteEndPoint, newState RemoteState) error {
 	theirEndPoint.remoteState.lock.Lock()
@@ -666,34 +849,6 @@ func (tp *TCPTransport) closeLocalEndPoint(epid EndPointId) error {
 		return nil
 	}
 	return errors.New("endpoinyt not exist!")
-}
-
-//TODO: return Writer/Closer
-func (ep *LocalEndPoint) connect(remoteEP EndPointAddress) (Connection, error) {
-	conn, err := net.Dial("tcp", string(remoteEP.TransportAddr))
-	if err != nil {
-		return nil, err
-	}
-
-	// send remote endpoint id and out endpoint address
-	bw := bufio.NewWriterSize(conn, 256)
-	WriteUint32(uint32(remoteEP.epid), bw)
-	myaddr := []byte(ep.localAddress.String())
-	WriteUint32(uint32(len(myaddr)), bw)
-	bw.Write(myaddr)
-	bw.Flush()
-
-	// r, err := ReadUint32(conn)
-	// if err != nil {
-	// 	defer conn.Close()
-	// 	return nil, err
-	// }
-	// resp := ConnectionRequestResponse(r)
-	// if resp != ConnectionRequestAccepted {
-	// 	defer conn.Close()
-	// 	return nil, errors.New(resp.String())
-	// }
-	return conn, nil
 }
 
 func createConnectionId(hcid HeavyweightConnectionId, lcid LightweightConnectionId) ConnectionId {

@@ -27,6 +27,11 @@ type Connection interface {
 	io.Closer
 }
 
+type LocalConnection struct {
+	close func() error
+	send  func([]byte) (int, error)
+}
+
 func Send(conn Connection, msg string) error {
 	_, err := conn.Write([]byte(msg))
 	return err
@@ -67,9 +72,17 @@ func (ep *LocalEndPoint) Addr() net.Addr {
 }
 
 func (ep *LocalEndPoint) Dial(remoteEP EndPointAddress) (Connection, error) {
-	return ep.connect(remoteEP)
+	return ep.apiConnect(remoteEP)
 }
 
 func (addr *EndPointAddress) Network() string {
 	return "tcp"
+}
+
+func (conn *LocalConnection) Close() error {
+	return conn.close()
+}
+
+func (conn *LocalConnection) Write(msg []byte) (int, error) {
+	return conn.send(msg)
 }

@@ -21,7 +21,7 @@
             (println "server" event)
             (assertConnectionOpend t event)
             (let event2 (ep.Receive))
-            (println "server" event2))
+            (println "server2" event2))
 
         ;; TEST 2: after they dropped their connection to us, we now try to
         ;; establish a connection to them. This should re-establish the broken
@@ -29,7 +29,7 @@
         (<-clientAddr theirAddr)
         (println "server" "Trying to connect to client" theirAddr)
         (<- conn (ep.Dial theirAddr))
-        (println "server" conn)
+        ; (println "server" conn)
 
         ;; TEST 3: To test the connection, we do a simple ping test; as before,
         ;; however, the remote client won't close the connection nicely but just
@@ -38,13 +38,13 @@
             (Send conn "ping")
 
             (let event3 (ep.Receive))
-            (println "server" event3)
+            (println "server3" event3)
                 
             (let event4 (ep.Receive))
-            (println "server" event4)
+            (println "server4" event4)
 
             (let event5 (ep.Receive))
-            (println "server" event5))
+            (println "server5" event5))
         
         ;; TEST 4: A subsequent send on an already-open connection will now break
         (Send conn "ping2")

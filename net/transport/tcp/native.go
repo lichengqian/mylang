@@ -3,7 +3,6 @@ package tcp
 import (
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"io"
 	"net"
 	"strconv"
@@ -40,7 +39,7 @@ func encodeEndPointAddress(ep EndPointAddress) []byte {
 
 func decodeEndPointAddress(bs []byte) (*EndPointAddress, error) {
 	s := string(bs)
-	fmt.Println("before decode:", s)
+	// fmt.Println("before decode:", s)
 	i := strings.LastIndex(s, ":")
 	addr := TransportAddr(s[:i])
 	epid, err := strconv.Atoi(s[(i + 1):])
