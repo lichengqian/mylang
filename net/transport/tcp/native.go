@@ -10,13 +10,6 @@ import (
 	"strings"
 )
 
-type TransportAddr string
-
-type EndPointAddress struct {
-	TransportAddr
-	epid EndPointId
-}
-
 type Closer func() error
 type Action func()
 type Notifier chan struct{}

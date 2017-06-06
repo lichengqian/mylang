@@ -7,6 +7,13 @@ import (
 	"net"
 )
 
+type TransportAddr string
+
+type EndPointAddress struct {
+	TransportAddr
+	epid EndPointId
+}
+
 type Transport interface {
 	io.Closer
 	NewEndPoint(EndPointId) (EndPoint, error)
