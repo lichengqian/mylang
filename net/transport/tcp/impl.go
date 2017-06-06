@@ -76,6 +76,7 @@ func (ourEndPoint *LocalEndPoint) apiClose(theirEndPoint *RemoteEndPoint, connId
 		case *RemoteEndPointValid:
 			vst := &st._1
 			vst._remoteOutgoing--
+			fmt.Println("remoteOutgoing--:", vst._remoteOutgoing)
 			//sched action
 			return vst.remoteConn
 		default:
@@ -84,8 +85,7 @@ func (ourEndPoint *LocalEndPoint) apiClose(theirEndPoint *RemoteEndPoint, connId
 	}()
 
 	if conn != nil {
-		WriteUint32(uint32(CloseConnection{}.tagControlHeader()), conn)
-		WriteUint32(uint32(connId), conn)
+		sendCloseConnection(uint32(connId), conn)
 	}
 	ourEndPoint.closeIfUnused(theirEndPoint)
 	return nil
@@ -106,8 +106,7 @@ func (ourEndPoint *LocalEndPoint) apiSend(theirEndPoint *RemoteEndPoint, connId 
 			vst := &st._1
 			conn := vst.remoteConn
 			return func() {
-				WriteUint32(uint32(connId), conn)
-				WriteWithLen(msg, conn)
+				connId.sendMsg(msg, conn)
 			}, nil
 		case *RemoteEndPointClosing, RemoteEndPointClosed:
 			ourEndPoint.relyViolation("apiSend")
@@ -230,6 +229,7 @@ func handleIncomingMessages(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEnd
 
 	// Deal with a premature exit
 	prematureExit := func(err error) {
+		fmt.Println("in prematureExit:", err)
 		theirState := &theirEndPoint.remoteState
 		theirState.lock.Lock()
 		defer theirState.lock.Unlock()
@@ -376,48 +376,60 @@ func handleIncomingMessages(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEnd
 
 	// Close the socket (if we don't have any outgoing connections)
 	closeSocket := func(sock net.Conn, lastReceivedId LightweightConnectionId) (bool, error) {
-		theirState := &theirEndPoint.remoteState
-		theirState.lock.Lock()
-		defer theirState.lock.Unlock()
+		action := func() func() {
+			theirState := &theirEndPoint.remoteState
+			theirState.lock.Lock()
+			defer theirState.lock.Unlock()
 
-		switch st := theirState.value.(type) {
-		case *RemoteEndPointInvalid:
-			ourEndPoint.relyViolation("handleIncomingMessages:closeSocket (invalid)")
-		case *RemoteEndPointInit:
-			ourEndPoint.relyViolation("handleIncomingMessages:closeSocket (init)")
-		case *RemoteEndPointValid:
-			vst := &st._1
-			for k := range vst._remoteIncoming {
-				enqueue(&ConnectionClosed{connId(k)})
-			}
-			vst._remoteIncoming = make(map[LightweightConnectionId]struct{})
-			if uint32(vst._remoteOutgoing) > 0 || uint32(lastReceivedId) != uint32(lastSentId(vst)) {
-				return false, nil
-			} else {
+			fmt.Println("closing socket:", theirState.value.String())
+			switch st := theirState.value.(type) {
+			case *RemoteEndPointInvalid:
+				ourEndPoint.relyViolation("handleIncomingMessages:closeSocket (invalid)")
+			case *RemoteEndPointInit:
+				ourEndPoint.relyViolation("handleIncomingMessages:closeSocket (init)")
+			case *RemoteEndPointValid:
+				vst := &st._1
+				fmt.Println(vst)
+				for k := range vst._remoteIncoming {
+					enqueue(&ConnectionClosed{connId(k)})
+				}
+				if uint32(vst._remoteOutgoing) > 0 || uint32(lastReceivedId) != uint32(lastSentId(vst)) {
+					fmt.Println("we still have connections, can not close socket", vst._remoteOutgoing)
+					vst._remoteIncoming = make(map[LightweightConnectionId]struct{})
+					return nil
+				} else {
+					ourEndPoint.removeRemoteEndPoint(theirEndPoint)
+					theirState.value = RemoteEndPointClosed{}
+					return func() {
+						sendCloseSocket(uint32(vst._remoteLastIncoming), vst.remoteConn)
+					}
+				}
+			case *RemoteEndPointClosing:
+				vst := &st._2
+				if lastReceivedId != lastSentId(vst) {
+					return nil
+				}
+				if vst._remoteOutgoing > 0 {
+					code := EventConnectionLost{theirAddress}
+					msg := "socket closed prematurely by peer"
+					enqueue(&ErrorEvent{errors.New(msg), code.String()})
+				}
 				ourEndPoint.removeRemoteEndPoint(theirEndPoint)
-				//TODO: schedule 1258
 				theirState.value = RemoteEndPointClosed{}
-				return true, nil
+				return func() {}
+			case *RemoteEndPointFailed:
+				fmt.Println("closeSocket:", st._1)
+				return nil
+			case RemoteEndPointClosed:
+				ourEndPoint.relyViolation("handleIncomingMessages:closeSocket (closed)")
 			}
-		case *RemoteEndPointClosing:
-			vst := &st._2
-			if lastReceivedId != lastSentId(vst) {
-				return false, nil
-			}
-			if vst._remoteOutgoing > 0 {
-				code := EventConnectionLost{theirAddress}
-				msg := "socket closed prematurely by peer"
-				enqueue(&ErrorEvent{errors.New(msg), code.String()})
-			}
-			ourEndPoint.removeRemoteEndPoint(theirEndPoint)
-			theirState.value = RemoteEndPointClosed{}
-			return true, nil
-		case *RemoteEndPointFailed:
-			return false, st._1
-		case RemoteEndPointClosed:
-			ourEndPoint.relyViolation("handleIncomingMessages:closeSocket (closed)")
-		}
+			return nil
+		}()
 
+		if action != nil {
+			action()
+			return true, nil
+		}
 		return false, nil
 	}
 
@@ -463,6 +475,7 @@ func handleIncomingMessages(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEnd
 		for {
 			lcid, err := ReadUint32(sock)
 			if err != nil {
+				fmt.Println("read lcid failed", err)
 				return err
 			}
 
@@ -498,11 +511,12 @@ func handleIncomingMessages(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEnd
 					return err
 				}
 				didClose, err := closeSocket(sock, LightweightConnectionId(i))
+				fmt.Println("closing socket...", i, didClose, err)
 				if err != nil {
 					return err
 				}
-				if !didClose {
-					continue
+				if didClose {
+					return nil
 				}
 			case CloseEndPoint:
 				ourEndPoint.removeRemoteEndPoint(theirEndPoint)
@@ -516,8 +530,8 @@ func handleIncomingMessages(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEnd
 
 	if err != nil {
 		prematureExit(err)
-		return
 	}
+	fmt.Println("handleIncomingMessages exit!---")
 }
 
 // | Create a connection to a remote endpoint
@@ -527,18 +541,39 @@ func handleIncomingMessages(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEnd
 //
 // May throw a TransportError ConnectErrorCode exception.
 func (ourEndPoint *LocalEndPoint) createConnectionTo(theirAddress EndPointAddress) (*RemoteEndPoint, LightweightConnectionId, error) {
+	return ourEndPoint.createConnectionTo_go(theirAddress, nil)
+}
+
+func (ourEndPoint *LocalEndPoint) createConnectionTo_go(theirAddress EndPointAddress, rsp ConnectionRequestResponse) (*RemoteEndPoint, LightweightConnectionId, error) {
 	theirEndPoint, isNew, err := ourEndPoint.findRemoteEndPoint(theirAddress, RequestedByUs{})
+	switch rsp.(type) {
+	case ConnectionRequestCrossed:
+		func() {
+			theirState := &theirEndPoint.remoteState
+			theirState.lock.Lock()
+			defer theirState.lock.Unlock()
+
+			switch theirState.value.(type) {
+			case *RemoteEndPointInit:
+				// resovled := st._1
+				// notify(resolved)
+				ourEndPoint.removeRemoteEndPoint(theirEndPoint)
+				theirState.value = RemoteEndPointClosed{}
+			}
+		}()
+	}
+
 	if err != nil {
 		return nil, firstNonReservedLightweightConnectionId, err
 	}
 
 	if isNew {
-		rsp, err := ourEndPoint.setupRemoteEndPoint(theirEndPoint)
-		fmt.Println("createConnectionTo ", rsp, err)
-		// TODO: handle response?
+		rsp2, err := ourEndPoint.setupRemoteEndPoint(theirEndPoint)
+		fmt.Println("createConnectionTo ", rsp2, err)
 		if err != nil {
-			return theirEndPoint, firstNonReservedLightweightConnectionId, err
+			// return theirEndPoint, firstNonReservedLightweightConnectionId, err
 		}
+		return ourEndPoint.createConnectionTo_go(theirAddress, rsp2)
 	}
 	// 'findRemoteEndPoint' will have increased 'remoteOutgoing'
 	var action func()
@@ -552,11 +587,9 @@ func (ourEndPoint *LocalEndPoint) createConnectionTo(theirAddress EndPointAddres
 			vst := &st._1
 			connId := vst._remoteNextConnOutId
 			vst._remoteNextConnOutId = connId + 1
-			//TODO schedule
 			conn := vst.remoteConn
 			action = func() {
-				WriteUint32(uint32(CreateNewConnection{}.tagControlHeader()), conn)
-				WriteUint32(uint32(connId), conn)
+				sendCreateNewConnection(uint32(connId), conn)
 			}
 			return connId, nil
 		case *RemoteEndPointInvalid:
@@ -635,48 +668,83 @@ func (ourEndPoint *LocalEndPoint) setupRemoteEndPoint(theirEndPoint *RemoteEndPo
 // create it in Init state. Returns if the endpoint was new, or 'Nothing' if
 // it times out.
 func (ourEndPoint *LocalEndPoint) findRemoteEndPoint(theirAddress EndPointAddress, findOrigin RequestedBy) (*RemoteEndPoint, bool, error) {
-	ourState := &ourEndPoint.localState
+	theirEndPoint, isNew, err := func() (*RemoteEndPoint, bool, error) {
+		ourState := &ourEndPoint.localState
 
-	ourState.lock.Lock()
-	defer ourState.lock.Unlock()
+		ourState.lock.Lock()
+		defer ourState.lock.Unlock()
 
-	switch state := ourState.value.(type) {
-	case *LocalEndPointValid:
-		vst := &state._1
-		if theirEndPoint, ok := vst._localConnections[theirAddress]; ok {
-			theirState := &theirEndPoint.remoteState
-			//TODO:
-			switch p := theirState.value.(type) {
-			case *RemoteEndPointInvalid:
-				return nil, false, errors.New(p._2)
-			case *RemoteEndPointInit:
-				return nil, false, errors.New("Already connected")
-			case *RemoteEndPointValid:
+		switch state := ourState.value.(type) {
+		case *LocalEndPointValid:
+			vst := &state._1
+			if theirEndPoint, ok := vst._localConnections[theirAddress]; ok {
 				return theirEndPoint, false, nil
-			case *RemoteEndPointFailed:
-				return nil, false, p._1
-			default:
-				return nil, false, errors.New("unknown remote state")
-			}
 
-		} else {
-			//TODO:
-			theirState := &RemoteEndPointInit{newNotifier(), newNotifier(), findOrigin}
-			theirEndPoint = &RemoteEndPoint{
-				remoteAddress: theirAddress,
-				remoteState: struct {
-					value RemoteState
-					lock  sync.Mutex
-				}{value: theirState},
-				remoteId: vst._nextConnInId,
+			} else {
+				//TODO:
+				theirState := &RemoteEndPointInit{newNotifier(), newNotifier(), findOrigin}
+				theirEndPoint = &RemoteEndPoint{
+					remoteAddress: theirAddress,
+					remoteState: struct {
+						value RemoteState
+						lock  sync.Mutex
+					}{value: theirState},
+					remoteId: vst._nextConnInId,
+				}
+				vst._localConnections[theirAddress] = theirEndPoint
+				vst._nextConnInId += 1
+				return theirEndPoint, true, nil
 			}
-			vst._localConnections[theirAddress] = theirEndPoint
-			vst._nextConnInId += 1
-			return theirEndPoint, true, nil
+		default: // LocalEndPointClosed
+			return nil, false, errors.New("Local endpoint closed")
 		}
-	default: // LocalEndPointClosed
-		return nil, false, errors.New("Local endpoint closed")
+	}()
+
+	fmt.Println("findRemoteEndPoint:", findOrigin, theirEndPoint, isNew, err)
+	if err != nil || isNew {
+		return theirEndPoint, isNew, err
 	}
+
+	snapshot := func() RemoteState {
+		theirState := &theirEndPoint.remoteState
+		theirState.lock.Lock()
+		defer theirState.lock.Unlock()
+
+		switch p := theirState.value.(type) {
+		case *RemoteEndPointValid:
+			vst := &p._1
+			switch findOrigin.(type) {
+			case RequestedByUs:
+				vst._remoteOutgoing++
+				fmt.Println("remoteOutgoing++:", vst._remoteOutgoing)
+				return theirState.value
+			}
+		}
+		return theirState.value
+	}()
+
+	fmt.Println("findRemoteEndPoint:snapshot", findOrigin, snapshot)
+
+	switch st := snapshot.(type) {
+	case *RemoteEndPointInvalid:
+		return nil, false, errors.New(st._2)
+	case *RemoteEndPointInit:
+		//TODO: 1803
+		return nil, false, errors.New("Already connected")
+	case *RemoteEndPointValid:
+		return theirEndPoint, false, nil
+	case *RemoteEndPointClosing:
+		//TODO: 1826
+		return nil, false, nil
+	case RemoteEndPointClosed:
+		//TODO: go?
+		return nil, false, nil
+	case *RemoteEndPointFailed:
+		return nil, false, st._1
+	}
+	//this can not happen!
+	panic("can not happen")
+	return nil, false, nil
 }
 
 // | Send a CloseSocket request if the remote endpoint is unused
@@ -694,8 +762,7 @@ func (ourEndPoint *LocalEndPoint) closeIfUnused(theirEndPoint *RemoteEndPoint) {
 				theirState.value = &RemoteEndPointClosing{newNotifier(), *vst}
 				conn := vst.remoteConn
 				return func() {
-					WriteUint32(uint32(CloseSocket{}.tagControlHeader()), conn)
-					WriteUint32(uint32(vst._remoteLastIncoming), conn)
+					sendCloseSocket(uint32(vst._remoteLastIncoming), conn)
 				}
 			}
 		}

@@ -3,6 +3,7 @@ package tcp
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"strconv"
@@ -166,10 +167,36 @@ func socketToEndPoint_(ourAddress EndPointAddress, theirAddress EndPointAddress)
 	}
 }
 
+func sendCreateNewConnection(lcid uint32, w io.Writer) {
+	WriteUint32(uint32(CreateNewConnection{}.tagControlHeader()), w)
+	WriteUint32(lcid, w)
+}
+
+func sendCloseConnection(lcid uint32, w io.Writer) {
+	WriteUint32(uint32(CloseConnection{}.tagControlHeader()), w)
+	WriteUint32(lcid, w)
+}
+
+func sendCloseSocket(i uint32, w io.Writer) {
+	fmt.Println("sending CloseSocket:", i)
+	WriteUint32(uint32(CloseSocket{}.tagControlHeader()), w)
+	WriteUint32(i, w)
+}
+
+func (lcid LightweightConnectionId) sendMsg(msg []byte, w io.Writer) {
+	WriteUint32(uint32(lcid), w)
+	WriteWithLen(msg, w)
+}
+
 //-----------------------------------------------------------------------------
 // Debugging                                                                 --
 //-----------------------------------------------------------------------------
 
 func (ourEndPoint *LocalEndPoint) relyViolation(str string) {
+	fmt.Println(str + " RELY violation")
 	panic(str + " RELY violation")
+}
+
+func (vst *ValidRemoteEndPointState) String() string {
+	return fmt.Sprintf("ValidRemoteEndPointState: outgoing=%d, incoming=%d", vst._remoteOutgoing, len(vst._remoteIncoming))
 }
