@@ -397,7 +397,11 @@
   
 (defmethod emit-special [::golang 'go]
   [_ [_ & body]]
-  (str "go " (emit-do body)))
+  (if (= 1 (count body))
+      (str "go " (emit-do body))
+      (str  "go func() {\n"
+            (emit-do body)
+            "}()\n")))
   
 (defmethod emit-special [::golang 'main]
   [_ [_  & body]]
