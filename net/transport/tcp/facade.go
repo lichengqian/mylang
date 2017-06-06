@@ -14,6 +14,10 @@ type EndPointAddress struct {
 	epid EndPointId
 }
 
+func newEndPointAddress(lAddr string, ep int) EndPointAddress {
+	return EndPointAddress{TransportAddr(lAddr), EndPointId(ep)}
+}
+
 type Transport interface {
 	io.Closer
 	NewEndPoint(EndPointId) (EndPoint, error)

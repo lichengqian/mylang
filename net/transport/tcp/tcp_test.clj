@@ -155,3 +155,25 @@
     (go (server))
     (go (client))
     (wait serverDone))
+
+;;; Test the creation of a transport with an invalid address
+(test invalidAddress
+    (let [_ err] (CreateTransport "invalidHostName:9999"))
+    (println err))
+
+;;; Test connecting to invalid or non-existing endpoints
+(test invalidConnect
+    (<- tp (CreateTransport "127.0.0.1:9999"))
+    (<- ep (tp.NewEndPoint 1000))
+
+    ;; Syntax connect, but invalid hostname (TCP address lookup failure)
+    (let [conn2, err] (ep.Dial (newEndPointAddress "invalidAddress", 0)))
+    (println conn2 err)
+
+    ;; TCP address correct, but nobody home at that address
+    (let [conn3, err] (ep.Dial (newEndPointAddress "127.0.0.1:9000", 0)))
+    (println conn3 err)
+
+    ;; Valid TCP address but invalid endpoint number
+    (let [conn4, err] (ep.Dial (newEndPointAddress "127.0.0.1:9999", 900)))
+    (println conn4 err))
