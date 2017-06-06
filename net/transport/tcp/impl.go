@@ -147,7 +147,7 @@ func (tp *TCPTransport) handleConnectionRequest(conn net.Conn) {
 		conn.Close()
 		return
 	}
-	fmt.Println("handleConnectionRequest:", theirAddress)
+	fmt.Println("handleConnectionRequest:", theirAddress, "->", ourEndPointID)
 	if !checkPeerHost(conn, theirAddress) {
 		writeConnectionRequestResponse(ConnectionRequestHostMismatch{}, conn)
 		conn.Close()
@@ -569,7 +569,7 @@ func (ourEndPoint *LocalEndPoint) createConnectionTo_go(theirAddress EndPointAdd
 
 	if isNew {
 		rsp2, err := ourEndPoint.setupRemoteEndPoint(theirEndPoint)
-		fmt.Println("createConnectionTo ", rsp2, err)
+		fmt.Println("createConnectionTo ", theirAddress, rsp2, err)
 		if err != nil {
 			// return theirEndPoint, firstNonReservedLightweightConnectionId, err
 		}
@@ -700,7 +700,7 @@ func (ourEndPoint *LocalEndPoint) findRemoteEndPoint(theirAddress EndPointAddres
 		}
 	}()
 
-	fmt.Println("findRemoteEndPoint:", findOrigin, theirEndPoint, isNew, err)
+	// fmt.Println("findRemoteEndPoint:", findOrigin, theirEndPoint, isNew, err)
 	if err != nil || isNew {
 		return theirEndPoint, isNew, err
 	}
@@ -723,7 +723,7 @@ func (ourEndPoint *LocalEndPoint) findRemoteEndPoint(theirAddress EndPointAddres
 		return theirState.value
 	}()
 
-	fmt.Println("findRemoteEndPoint:snapshot", findOrigin, snapshot)
+	// fmt.Println("findRemoteEndPoint:snapshot", findOrigin, snapshot)
 
 	switch st := snapshot.(type) {
 	case *RemoteEndPointInvalid:

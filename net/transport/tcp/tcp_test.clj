@@ -9,7 +9,7 @@
         serverDone (newNotifier))
     (println "testEarlyDisconnect")
 
-    (let-fn server
+    (go
         (println "server")
         (<- tp (CreateTransport "127.0.0.1:9999"))
         (<- ep (tp.NewEndPoint 1000))
@@ -53,7 +53,7 @@
         (notify serverDone)
         (println "server exist"))
 
-    (let-fn client
+    (go
         (println "client")
         (<- ourAddr (mockEarlyDisconnect "127.0.0.1:8888"))
         (println "client" ourAddr)
@@ -70,8 +70,6 @@
         (sock.Close)
         (println "client exit"))
 
-    (go (server))
-    (go (client))
     (wait serverDone))
 
 ;;; Test the behaviour of a premature CloseSocket request
@@ -82,7 +80,7 @@
         serverDone (newNotifier))
     (println "testEarlyCloseSocket")
     
-    (let-fn server
+    (go     ; server
         (println "server")
         (<- tp (CreateTransport "127.0.0.1:9999"))
         (<- ep (tp.NewEndPoint 1000))
@@ -132,7 +130,7 @@
         (notify serverDone)
         (println "server exist"))
 
-    (let-fn client
+    (go     ; client
         (println "client")
         (<- ourAddr (mockEarlyCloseSocket "127.0.0.1:8888"))
         (println "client" ourAddr)
@@ -152,8 +150,6 @@
         (sock.Close)
         (println "client exit"))
 
-    (go (server))
-    (go (client))
     (wait serverDone))
 
 ;;; Test the creation of a transport with an invalid address
@@ -177,3 +173,84 @@
     ;; Valid TCP address but invalid endpoint number
     (let [conn4, err] (ep.Dial (newEndPointAddress "127.0.0.1:9999", 900)))
     (println conn4 err))
+
+;;; | Test that an endpoint can ignore CloseSocket requests (in "reality" this)
+;;; would happen when the endpoint sends a new connection request before
+;;; receiving an (already underway) CloseSocket request
+(test ignoreCloseSocket
+    (let 
+        clientAddr (chan EndPointAddress 1)
+        serverAddr (chan EndPointAddress 1)
+        clientDone (newNotifier)
+        serverDone (newNotifier)
+        connectionEstablished (newNotifier))
+    (println "testIgnoreCloseSocket")
+
+    (<- transport (CreateTransport "127.0.0.1:9999"))
+
+    ;; server
+    (go
+        (println "server")
+        (<- endpoint (transport.NewEndPoint 1000))
+        (let ourAddress (endpoint.Address))
+        (serverAddr<- ourAddress)
+        (<-clientAddr theirAddress)
+
+        ;; Wait for the client to set up the TCP connection to us
+        (wait connectionEstablished)
+
+        ;; Connect then disconnect to the client
+        (<- conn (endpoint.Dial theirAddress))
+        (conn.Close)
+
+        ;; At this point the server will have sent a CloseSocket request to the
+        ;; client, which however ignores it, instead it requests and closes
+        ;; another connection
+        (let event (endpoint.Receive))
+        (println "Waiting for ConnectionOpened" event)
+        (let event2 (endpoint.Receive))
+        (println "Waiting for ConnectionClosed" event2)
+
+        (println "server Done")
+        (notify serverDone))
+
+    ;; client
+    (go
+        (println "client")
+        (<- endpoint (transport.NewEndPoint 2000))
+        (let ourAddress (endpoint.Address))
+        (clientAddr<- ourAddress)
+        (<-serverAddr theirAddress)
+
+        ;; Connect to the server
+        (<- sock (socketToEndPoint_ ourAddress theirAddress))
+        (notify connectionEstablished)
+
+        ;; Server connects to us, and then closes the connection
+        (<- cheader (recvControlHeader sock))
+        (<- lcid (ReadUint32 sock))
+        (println "want CreatedNewConnection:" cheader lcid)
+        
+        (<- cheader2 (recvControlHeader sock))
+        (<- lcid2 (ReadUint32 sock))
+        (println "want CloseConnection:" cheader2 lcid2)
+
+        ;; Server will now send a CloseSocket request as its refcount reached 0
+        (<- cheader3 (recvControlHeader sock))
+        (<- lcid3 (ReadUint32 sock))
+        (println "want CloseSocket:" cheader3 lcid3)
+
+        ;; But we ignore it and request another connection in the other direction
+        (println "Ignore it, requesting another connection")
+        (sendCreateNewConnection 1024 sock)
+
+        ;; Close it again
+        (println "Closing socket")
+        (sendCloseSocket 1024 sock)
+        (sock.Close)
+
+        (println "client Done")
+        (notify clientDone))
+
+    (wait clientDone)
+    (wait serverDone))

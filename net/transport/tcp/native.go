@@ -160,6 +160,10 @@ func socketToEndPoint_(ourAddress EndPointAddress, theirAddress EndPointAddress)
 	}
 }
 
+//-----------------------------------------------------------------------------
+// network utils                                                             --
+//-----------------------------------------------------------------------------
+
 func sendCreateNewConnection(lcid uint32, w io.Writer) {
 	WriteUint32(uint32(CreateNewConnection{}.tagControlHeader()), w)
 	WriteUint32(lcid, w)
@@ -179,6 +183,14 @@ func sendCloseSocket(i uint32, w io.Writer) {
 func (lcid LightweightConnectionId) sendMsg(msg []byte, w io.Writer) {
 	WriteUint32(uint32(lcid), w)
 	WriteWithLen(msg, w)
+}
+
+func recvControlHeader(r io.Reader) (ControlHeader, error) {
+	n, err := ReadUint32(r)
+	if err != nil {
+		return nil, err
+	}
+	return decodeControlHeader(uint8(n)), nil
 }
 
 //-----------------------------------------------------------------------------
