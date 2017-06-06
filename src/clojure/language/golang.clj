@@ -378,11 +378,18 @@
        (emit-do body)
        "}\n\n"))
 
+(defn- emit-var [var]
+    (if (vector? var)
+        (string/join ","
+            (for [v var]
+              (str v)))
+        (str var)))
+
 (defmethod emit-special [::golang 'let]
   [_ [_ & body]]
   (string/join "\n"
     (for [[var expr] (partition 2 body)]
-        (str var " := " (emit expr)))))
+        (str (emit-var var) " := " (emit expr)))))
   
 (defmethod emit-special [::golang 'let-fn]
   [_ [_ n & body]]
