@@ -37,7 +37,7 @@ func createTCPTransport(lAddr string) (*TCPTransport, error) {
 //------------------------------------------------------------------------------
 
 // | Connnect to an endpoint
-func (ourEndPoint *LocalEndPoint) apiConnect(theirAddress EndPointAddress) (*LocalConnection, error) {
+func (ourEndPoint *LocalEndPoint) apiConnect(theirAddress EndPointAddress) (*Connection, error) {
 	//TODO: connect to self 756
 
 	err := ourEndPoint.resetIfBroken(theirAddress)
@@ -53,11 +53,11 @@ func (ourEndPoint *LocalEndPoint) apiConnect(theirAddress EndPointAddress) (*Loc
 		panic("apiConnect failed!")
 	}
 
-	return &LocalConnection{
-		close: func() error {
+	return &Connection{
+		Close: func() error {
 			return ourEndPoint.apiClose(theirEndPoint, connId)
 		},
-		send: func(msg []byte) (int, error) {
+		Write: func(msg []byte) (int, error) {
 			return ourEndPoint.apiSend(theirEndPoint, connId, msg)
 		},
 	}, nil
