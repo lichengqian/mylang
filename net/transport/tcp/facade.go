@@ -3,8 +3,6 @@ package tcp
 import (
 	"errors"
 	"fmt"
-	"io"
-	"net"
 )
 
 type TransportAddr string
@@ -18,19 +16,19 @@ func newEndPointAddress(lAddr string, ep int) EndPointAddress {
 	return EndPointAddress{TransportAddr(lAddr), EndPointId(ep)}
 }
 
-type Transport interface {
-	io.Closer
-	NewEndPoint(EndPointId) (EndPoint, error)
+type Transport struct {
+	Close       func() error
+	NewEndPoint func(EndPointId) (*EndPoint, error)
 }
 
-type EndPoint interface {
-	io.Closer
+type EndPoint struct {
+	Close func() error
 	// | Create a new lightweight connection.
-	Dial(remoteEP EndPointAddress) (*Connection, error)
+	Dial func(remoteEP EndPointAddress) (*Connection, error)
 	// | Endpoints have a single shared receive queue.
-	Receive() Event
+	Receive func() Event
 	// | EndPointAddress of the endpoint.
-	Address() EndPointAddress
+	Address func() EndPointAddress
 }
 
 type Connection struct {
@@ -43,44 +41,21 @@ func Send(conn *Connection, msg string) error {
 	return err
 }
 
-func CreateTransport(lAddr string) (Transport, error) {
-	return createTCPTransport(lAddr)
-	// return nil, errors.New("not implemented")
-}
-
-func (tp *TCPTransport) NewEndPoint(epid EndPointId) (EndPoint, error) {
-	return tp.createLocalEndPoint(epid)
+func CreateTransport(lAddr string) (*Transport, error) {
+	transport, err := createTCPTransport(lAddr)
+	if err != nil {
+		return nil, err
+	}
+	return &Transport{
+		Close: func() error {
+			return errors.New("not implemented")
+		},
+		NewEndPoint: func(epid EndPointId) (*EndPoint, error) {
+			return transport.apiNewEndPoint(epid)
+		},
+	}, nil
 }
 
 func (addr EndPointAddress) String() string {
 	return fmt.Sprintf("%s:%d", addr.TransportAddr, addr.epid)
-}
-
-func (tp *TCPTransport) Close() error {
-	return errors.New("not implemented")
-}
-
-func (ep *LocalEndPoint) Address() EndPointAddress {
-	return ep.localAddress
-}
-
-func (ep *LocalEndPoint) Receive() Event {
-	return <-ep.localQueue
-}
-
-func (ep *LocalEndPoint) Close() error {
-	// println()
-	return ep.closeLocalEndPoint()
-}
-
-func (ep *LocalEndPoint) Addr() net.Addr {
-	return &ep.localAddress
-}
-
-func (ep *LocalEndPoint) Dial(remoteEP EndPointAddress) (*Connection, error) {
-	return ep.apiConnect(remoteEP)
-}
-
-func (addr *EndPointAddress) Network() string {
-	return "tcp"
 }

@@ -36,6 +36,28 @@ func createTCPTransport(lAddr string) (*TCPTransport, error) {
 // API functions                                                              --
 //------------------------------------------------------------------------------
 
+// | Create a new endpoint
+func (transport *TCPTransport) apiNewEndPoint(epid EndPointId) (*EndPoint, error) {
+	ourEndPoint, err := transport.createLocalEndPoint(epid)
+	if err != nil {
+		return nil, err
+	}
+	return &EndPoint{
+		Close: func() error {
+			return transport.apiCloseEndPoint([]Event{EndPointClosed{}}, ourEndPoint)
+		},
+		Dial: func(theirAddress EndPointAddress) (*Connection, error) {
+			return ourEndPoint.apiConnect(theirAddress)
+		},
+		Receive: func() Event {
+			return <-ourEndPoint.localQueue
+		},
+		Address: func() EndPointAddress {
+			return ourEndPoint.localAddress
+		},
+	}, nil
+}
+
 // | Connnect to an endpoint
 func (ourEndPoint *LocalEndPoint) apiConnect(theirAddress EndPointAddress) (*Connection, error) {
 	//TODO: connect to self 756
@@ -124,7 +146,7 @@ func (ourEndPoint *LocalEndPoint) apiSend(theirEndPoint *RemoteEndPoint, connId 
 }
 
 // | Force-close the endpoint
-func (transport *TCPTransport) apiCloseEndPoint(evs []Event, ourEndPoint *LocalEndPoint) {
+func (transport *TCPTransport) apiCloseEndPoint(evs []Event, ourEndPoint *LocalEndPoint) error {
 	// Remove the reference from the transport state
 	transport.removeLocalEndPoint(ourEndPoint)
 	// Close the local endpoint
@@ -192,6 +214,7 @@ func (transport *TCPTransport) apiCloseEndPoint(evs []Event, ourEndPoint *LocalE
 			ourEndPoint.localQueue <- e
 		}
 	}
+	return nil
 }
 
 //------------------------------------------------------------------------------
