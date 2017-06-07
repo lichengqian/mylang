@@ -51,12 +51,12 @@ func WriteUint32(i uint32, w io.Writer) (int, error) {
 }
 
 func WriteWithLen(buf []byte, w io.Writer) (int, error) {
-	binary.BigEndian.PutUint32(buf[:], uint32(len(buf)))
 	WriteUint32(uint32(len(buf)), w)
 	return w.Write(buf[:])
 }
 
 func ReadExact(r io.Reader, len uint32) ([]byte, error) {
+	fmt.Println("ReadExact:", len)
 	buf := make([]byte, len)
 	_, err := io.ReadFull(r, buf[:])
 	if err != nil {
@@ -170,6 +170,7 @@ func sendCreateNewConnection(lcid uint32, w io.Writer) {
 }
 
 func sendCloseConnection(lcid uint32, w io.Writer) {
+	fmt.Println("sending CloseConnection:", lcid)
 	WriteUint32(uint32(CloseConnection{}.tagControlHeader()), w)
 	WriteUint32(lcid, w)
 }

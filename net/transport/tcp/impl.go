@@ -65,9 +65,9 @@ func (ourEndPoint *LocalEndPoint) apiConnect(theirAddress EndPointAddress) (*Loc
 
 // | Close a connection
 func (ourEndPoint *LocalEndPoint) apiClose(theirEndPoint *RemoteEndPoint, connId LightweightConnectionId) error {
-	theirState := theirEndPoint.remoteState
-
+	fmt.Println("closing connection:", ourEndPoint.localAddress, theirEndPoint.remoteAddress, connId)
 	conn := func() net.Conn {
+		theirState := theirEndPoint.remoteState
 
 		theirState.lock.Lock()
 		defer theirState.lock.Unlock()
@@ -770,6 +770,7 @@ func (ourEndPoint *LocalEndPoint) closeIfUnused(theirEndPoint *RemoteEndPoint) {
 	}()
 
 	if action != nil {
+		fmt.Println("close unused connection to ", theirEndPoint.remoteAddress)
 		action()
 	}
 }
