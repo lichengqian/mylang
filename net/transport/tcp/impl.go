@@ -1025,9 +1025,6 @@ func (tp *TCPTransport) createLocalEndPoint(epid EndPointId) (*LocalEndPoint, er
 				lock  sync.Mutex
 			}{value: st},
 			localQueue: make(chan Event, 10),
-			closeLocalEndPoint: func() error {
-				return tp.closeLocalEndPoint(epid)
-			},
 		}
 		return endpoints[epid], nil
 	case TransportClosed:

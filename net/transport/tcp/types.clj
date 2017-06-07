@@ -20,8 +20,7 @@
 (struct LocalEndPoint
     localAddress EndPointAddress
     localState  (MVar LocalEndPointState)
-    localQueue   (Chan Event)
-    closeLocalEndPoint Closer)
+    localQueue   (Chan Event))
 
 (enum LocalEndPointState
     (LocalEndPointValid ValidLocalEndPointState)
