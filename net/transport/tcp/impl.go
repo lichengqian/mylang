@@ -123,6 +123,77 @@ func (ourEndPoint *LocalEndPoint) apiSend(theirEndPoint *RemoteEndPoint, connId 
 	return len(msg), nil
 }
 
+// | Force-close the endpoint
+func (transport *TCPTransport) apiCloseEndPoint(evs []Event, ourEndPoint *LocalEndPoint) {
+	// Remove the reference from the transport state
+	transport.removeLocalEndPoint(ourEndPoint)
+	// Close the local endpoint
+	ourState := func() *ValidLocalEndPointState {
+		st := &ourEndPoint.localState
+		st.lock.Lock()
+		defer st.lock.Unlock()
+
+		switch state := st.value.(type) {
+		case *LocalEndPointValid:
+			st.value = LocalEndPointClosed{}
+			return &state._1
+		}
+		return nil
+	}()
+
+	// Close the remote socket and return the set of all incoming connections
+	tryCloseRemoteSocket := func(theirEndPoint *RemoteEndPoint) {
+		// We make an attempt to close the connection nicely
+		// (by sending a CloseSocket first)
+		closed := &RemoteEndPointFailed{errors.New("apiCloseEndPoint")}
+
+		theirState := &theirEndPoint.remoteState
+		theirState.lock.Lock()
+		defer theirState.lock.Unlock()
+
+		switch st := theirState.value.(type) {
+		case *RemoteEndPointInit:
+			theirState.value = closed
+		case *RemoteEndPointValid:
+			// Schedule an action to send a CloseEndPoint message and then
+			// wait for the socket to actually close (meaning that this
+			// end point is no longer receiving from it).
+			// Since we replace the state in this MVar with 'closed', it's
+			// guaranteed that no other actions will be scheduled after this
+			// one.
+			vst := &st._1
+			sendCloseEndPoint(vst.remoteConn)
+			tryShutdownSocketBoth(vst.remoteConn)
+			// remoteSocketClosed(vst)
+
+			theirState.value = closed
+		case *RemoteEndPointClosing:
+			resovled := st._1
+			vst := &st._2
+			notify(resovled)
+
+			// Schedule an action to wait for the socket to actually close (this
+			// end point is no longer receiving from it).
+			// Since we replace the state in this MVar with 'closed', it's
+			// guaranteed that no other actions will be scheduled after this
+			// one.
+			tryShutdownSocketBoth(vst.remoteConn)
+			// remoteSocketClosed(vst)
+
+			theirState.value = closed
+		}
+	}
+
+	if ourState != nil {
+		for _, remoteEndPoint := range ourState._localConnections {
+			tryCloseRemoteSocket(remoteEndPoint)
+		}
+		for _, e := range evs {
+			ourEndPoint.localQueue <- e
+		}
+	}
+}
+
 //------------------------------------------------------------------------------
 // Incoming requests                                                          --
 //------------------------------------------------------------------------------
@@ -883,6 +954,21 @@ func (ourEndPoint *LocalEndPoint) removeRemoteEndPoint(theirEndPoint *RemoteEndP
 		}
 	case LocalEndPointClosed:
 		return
+	}
+}
+
+// | Remove reference to a local endpoint from the transport state
+//
+// Does nothing if the transport is closed
+func (transport *TCPTransport) removeLocalEndPoint(ourEndPoint *LocalEndPoint) {
+	state := &transport.transportState
+	state.lock.Lock()
+	defer state.lock.Unlock()
+
+	epid := ourEndPoint.localAddress.epid
+	endpoints := state.value.(*TransPortValid)._1._localEndPoints
+	if _, ok := endpoints[epid]; ok {
+		delete(endpoints, epid)
 	}
 }
 

@@ -164,6 +164,10 @@ func socketToEndPoint_(ourAddress EndPointAddress, theirAddress EndPointAddress)
 // network utils                                                             --
 //-----------------------------------------------------------------------------
 
+func tryShutdownSocketBoth(conn net.Conn) {
+	conn.Close()
+}
+
 func sendCreateNewConnection(lcid uint32, w io.Writer) {
 	WriteUint32(uint32(CreateNewConnection{}.tagControlHeader()), w)
 	WriteUint32(lcid, w)
@@ -179,6 +183,11 @@ func sendCloseSocket(i uint32, w io.Writer) {
 	fmt.Println("sending CloseSocket:", i)
 	WriteUint32(uint32(CloseSocket{}.tagControlHeader()), w)
 	WriteUint32(i, w)
+}
+
+func sendCloseEndPoint(w io.Writer) {
+	fmt.Println("sending CloseEndPoint")
+	WriteUint32(uint32(CloseEndPoint{}.tagControlHeader()), w)
 }
 
 func (lcid LightweightConnectionId) sendMsg(msg []byte, w io.Writer) {
