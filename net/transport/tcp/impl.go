@@ -65,7 +65,7 @@ func (ourEndPoint *LocalEndPoint) apiConnect(theirAddress EndPointAddress) (*Loc
 
 // | Close a connection
 func (ourEndPoint *LocalEndPoint) apiClose(theirEndPoint *RemoteEndPoint, connId LightweightConnectionId) error {
-	fmt.Println("closing connection:", ourEndPoint.localAddress, theirEndPoint.remoteAddress, connId)
+	fmt.Println("apiClose:", ourEndPoint.localAddress, "->", theirEndPoint.remoteAddress, connId)
 	conn := func() net.Conn {
 		theirState := theirEndPoint.remoteState
 
@@ -76,7 +76,7 @@ func (ourEndPoint *LocalEndPoint) apiClose(theirEndPoint *RemoteEndPoint, connId
 		case *RemoteEndPointValid:
 			vst := &st._1
 			vst._remoteOutgoing--
-			fmt.Println("remoteOutgoing--:", vst._remoteOutgoing)
+			fmt.Println("	remoteOutgoing--:", vst._remoteOutgoing)
 			//sched action
 			return vst.remoteConn
 		default:
@@ -716,7 +716,7 @@ func (ourEndPoint *LocalEndPoint) findRemoteEndPoint(theirAddress EndPointAddres
 			switch findOrigin.(type) {
 			case RequestedByUs:
 				vst._remoteOutgoing++
-				fmt.Println("remoteOutgoing++:", vst._remoteOutgoing)
+				fmt.Println("	remoteOutgoing++:", vst._remoteOutgoing)
 				return theirState.value
 			}
 		}
@@ -734,11 +734,10 @@ func (ourEndPoint *LocalEndPoint) findRemoteEndPoint(theirAddress EndPointAddres
 	case *RemoteEndPointValid:
 		return theirEndPoint, false, nil
 	case *RemoteEndPointClosing:
-		//TODO: 1826
-		return nil, false, nil
+		//TODO: wait resolved
+		return ourEndPoint.findRemoteEndPoint(theirAddress, findOrigin)
 	case RemoteEndPointClosed:
-		//TODO: go?
-		return nil, false, nil
+		return ourEndPoint.findRemoteEndPoint(theirAddress, findOrigin)
 	case *RemoteEndPointFailed:
 		return nil, false, st._1
 	}

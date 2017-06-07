@@ -80,7 +80,7 @@
     :internal true}
   special-forms
   #{'ns 'import 'struct 'type 'enum 'fn 'fn- 'let-fn 'val 'val- 'main 
-    'test 'tlog ; test support
+    'deftest 'tlog ; test support
     'go 'chan         ; concurrent support
     '<-   ; io monad supoort
     'if 'match 'aget 'aset 'get 'return 'set! 'native 'let

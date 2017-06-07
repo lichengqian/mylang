@@ -56,7 +56,7 @@ func WriteWithLen(buf []byte, w io.Writer) (int, error) {
 }
 
 func ReadExact(r io.Reader, len uint32) ([]byte, error) {
-	fmt.Println("ReadExact:", len)
+	// fmt.Println("ReadExact:", len)
 	buf := make([]byte, len)
 	_, err := io.ReadFull(r, buf[:])
 	if err != nil {

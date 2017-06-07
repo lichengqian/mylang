@@ -2,7 +2,7 @@
 
 ;;; Test that the server gets a ConnectionClosed message when the client closes
 ;;; the socket without sending an explicit control message to the server first)
-(test earlyDisconnect
+(deftest earlyDisconnect
     (let 
         clientAddr (chan EndPointAddress 1)
         serverAddr (chan EndPointAddress 1)
@@ -73,7 +73,7 @@
     (wait serverDone))
 
 ;;; Test the behaviour of a premature CloseSocket request
-(test earlyCloseSocket
+(deftest earlyCloseSocket
     (let 
         clientAddr (chan EndPointAddress 1)
         serverAddr (chan EndPointAddress 1)
@@ -153,12 +153,12 @@
     (wait serverDone))
 
 ;;; Test the creation of a transport with an invalid address
-(test invalidAddress
+(deftest invalidAddress
     (let [_ err] (CreateTransport "invalidHostName:9999"))
     (println err))
 
 ;;; Test connecting to invalid or non-existing endpoints
-(test invalidConnect
+(deftest invalidConnect
     (<- tp (CreateTransport "127.0.0.1:9999"))
     (<- ep (tp.NewEndPoint 1000))
 
@@ -177,7 +177,7 @@
 ;;; | Test that an endpoint can ignore CloseSocket requests (in "reality" this)
 ;;; would happen when the endpoint sends a new connection request before
 ;;; receiving an (already underway) CloseSocket request
-(test ignoreCloseSocket
+(deftest ignoreCloseSocket
     (let 
         clientAddr (chan EndPointAddress 1)
         serverAddr (chan EndPointAddress 1)
@@ -254,3 +254,86 @@
 
     (wait clientDone)
     (wait serverDone))
+
+;;; | Like 'testIgnoreSocket', but now the server requests a connection after the
+;;; client closed their connection. In the meantime, the server will have sent a
+;;; CloseSocket request to the client, and must block until the client responds.)
+(deftest blockAfterCloseSocket
+    (let 
+        clientAddr (chan EndPointAddress 1)
+        serverAddr (chan EndPointAddress 1)
+        clientDone (newNotifier)
+        serverDone (newNotifier)
+        connectionEstablished (newNotifier))
+    (println "testBlockAfterCloseSocket")
+
+    (<- transport (CreateTransport "127.0.0.1:9999"))
+
+    ;; server
+    (go
+        (println "server")
+        (<- endpoint (transport.NewEndPoint 1000))
+        (let ourAddress (endpoint.Address))
+        (serverAddr<- ourAddress)
+        (<-clientAddr theirAddress)
+
+        ;; Wait for the client to set up the TCP connection to us
+        (wait connectionEstablished)
+
+        ;; Connect then disconnect to the client
+        (<- conn (endpoint.Dial theirAddress))
+        (conn.Close)
+
+        ;; At this point the server will have sent a CloseSocket request to the
+        ;; client, and must block until the client responds
+        (<- conn2 (endpoint.Dial theirAddress))
+
+        (println "serverDone" conn2)
+        (notify serverDone))
+
+    ;; client
+    (go
+        (println "client")
+        (<- endpoint (transport.NewEndPoint 2000))
+        (let ourAddress (endpoint.Address))
+        (clientAddr<- ourAddress)
+        (<-serverAddr theirAddress)
+
+        ;; Connect to the server
+        (<- sock (socketToEndPoint_ ourAddress theirAddress))
+        (notify connectionEstablished)
+
+        ;; Server connects to us, and then closes the connection
+        (<- cheader (recvControlHeader sock))
+        (<- lcid (ReadUint32 sock))
+        (println "want CreatedNewConnection:" cheader lcid)
+        
+        (<- cheader2 (recvControlHeader sock))
+        (<- lcid2 (ReadUint32 sock))
+        (println "want CloseConnection:" cheader2 lcid2)
+
+        ;; Server will now send a CloseSocket request as its refcount reached 0
+        (<- cheader3 (recvControlHeader sock))
+        (<- lcid3 (ReadUint32 sock))
+        (println "want CloseSocket:" cheader3 lcid3)
+
+        (let unblocked (newNotifier))
+        ;; We should not hear from the server until we unblock him by
+        ;; responding to the CloseSocket request (in this case, we)
+        ;; respond by sending a ConnectionRequest
+        (go
+            (ReadUint32 sock)
+            (wait unblocked)
+            (println "clientDone")
+            (notify clientDone))
+        
+        (sleep 1000)
+        (println "Client ignores close socket and sends connection request")
+        (println "This should unblock the server")
+        (notify unblocked)
+        (sendCreateNewConnection 1024 sock))
+
+    (wait clientDone)
+    (wait serverDone))
+    
+

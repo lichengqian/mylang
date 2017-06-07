@@ -408,7 +408,7 @@
   (set-ns "main")
   (emit-function 'main nil [] body))
 
-(defmethod emit-special [::golang 'test]
+(defmethod emit-special [::golang 'deftest]
   [_ [_ n & body]]
   (go-import "testing")
   (.emitTest golang n body))
@@ -426,9 +426,13 @@
 ;; pipeline).
 (defmethod emit-function-call ::golang
   [name & args]
-  (if (seq args)
-    (str (emit name) "(" (reduce str (interpose "," args)) ")")
-    (str (emit name) "()")))
+  (case (str name)
+    "sleep" (do
+                (go-import "time")
+                (str "time.Sleep(" (first args) " * time.Millisecond)"))
+    (if (seq args)
+      (str (emit name) "(" (reduce str (interpose "," args)) ")")
+      (str (emit name) "()"))))
 
 (defmethod emit-type-builtin ::golang
   [t]
