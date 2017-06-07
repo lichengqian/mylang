@@ -15,7 +15,7 @@
         (<- ep (tp.NewEndPoint 1000))
         (println "server" (ep.Address))
         (serverAddr<- (ep.Address))
-        (<-clientAddr theirAddr)
+        (let theirAddr <-clientAddr)
 
         ;; TEST 1: they connect to us, then drop the connection
         (do
@@ -59,7 +59,7 @@
         (println "client" ourAddr)
 
         (clientAddr<- ourAddr)
-        (<-serverAddr theirAddr)
+        (let theirAddr <-serverAddr)
         ;; Connect to the server
         (<- sock (socketToEndPoint_ ourAddr theirAddr))
         ;; Open a new connection
@@ -86,7 +86,7 @@
         (<- ep (tp.NewEndPoint 1000))
         (println "server" (ep.Address))
         (serverAddr<- (ep.Address))
-        (<-clientAddr theirAddr)
+        (let theirAddr <-clientAddr)
         
         ;; TEST 1: they connect to us, then send a CloseSocket. Since we don't
         ;; have any outgoing connections, this means we will agree to close the
@@ -136,7 +136,7 @@
         (println "client" ourAddr)
 
         (clientAddr<- ourAddr)
-        (<-serverAddr theirAddr)
+        (let theirAddr <-serverAddr)
         ;; Connect to the server
         (<- sock (socketToEndPoint_ ourAddr theirAddr))
         ;; Open a new connection
@@ -194,7 +194,7 @@
         (<- endpoint (transport.NewEndPoint 1000))
         (let ourAddress (endpoint.Address))
         (serverAddr<- ourAddress)
-        (<-clientAddr theirAddress)
+        (let theirAddress <-clientAddr)
 
         ;; Wait for the client to set up the TCP connection to us
         (wait connectionEstablished)
@@ -220,7 +220,7 @@
         (<- endpoint (transport.NewEndPoint 2000))
         (let ourAddress (endpoint.Address))
         (clientAddr<- ourAddress)
-        (<-serverAddr theirAddress)
+        (let theirAddress <-serverAddr)
 
         ;; Connect to the server
         (<- sock (socketToEndPoint_ ourAddress theirAddress))
@@ -275,7 +275,7 @@
         (<- endpoint (transport.NewEndPoint 1000))
         (let ourAddress (endpoint.Address))
         (serverAddr<- ourAddress)
-        (<-clientAddr theirAddress)
+        (let theirAddress <-clientAddr)
 
         ;; Wait for the client to set up the TCP connection to us
         (wait connectionEstablished)
@@ -297,7 +297,7 @@
         (<- endpoint (transport.NewEndPoint 2000))
         (let ourAddress (endpoint.Address))
         (clientAddr<- ourAddress)
-        (<-serverAddr theirAddress)
+        (let theirAddress <-serverAddr)
 
         ;; Connect to the server
         (<- sock (socketToEndPoint_ ourAddress theirAddress))
@@ -367,3 +367,10 @@
         (notify clientDone))
 
     (wait clientDone))
+
+;;; | Test that we can create "many" transport instances
+;;; TODO
+
+;;; | Test what happens when the transport breaks completely)
+;;; TODO
+
