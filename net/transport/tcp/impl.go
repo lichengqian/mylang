@@ -234,7 +234,7 @@ func handleIncomingMessages(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEnd
 		theirState.lock.Lock()
 		defer theirState.lock.Unlock()
 
-		switch theirState.value.(type) {
+		switch st := theirState.value.(type) {
 		case *RemoteEndPointInvalid, *RemoteEndPointInit, RemoteEndPointClosed:
 			ourEndPoint.relyViolation("handleIncomingMessages:prematureExi")
 		case *RemoteEndPointValid:
@@ -243,6 +243,7 @@ func handleIncomingMessages(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEnd
 			ourEndPoint.localQueue <- &ErrorEvent{err, code.String()}
 			theirEndPoint.remoteState.value = &RemoteEndPointFailed{err}
 		case *RemoteEndPointClosing:
+			notify(st._1)
 			theirEndPoint.remoteState.value = &RemoteEndPointFailed{err}
 		case *RemoteEndPointFailed:
 			ourEndPoint.localState.lock.Lock()
@@ -328,6 +329,13 @@ func handleIncomingMessages(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEnd
 			st._1._remoteLastIncoming = lcid
 			st._1._remoteIncoming[lcid] = struct{}{}
 		case *RemoteEndPointClosing:
+			// If the endpoint is in closing state that means we send a
+			// CloseSocket request to the remote endpoint. If the remote
+			// endpoint replies that it created a new connection, it either
+			// ignored our request or it sent the request before it got ours.
+			// Either way, at this point we simply restore the endpoint to
+			// RemoteEndPointValid
+			notify(st._1)
 			vst := &st._2
 			vst._remoteLastIncoming = lcid
 			vst._remoteIncoming[lcid] = struct{}{}
@@ -405,6 +413,17 @@ func handleIncomingMessages(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEnd
 					}
 				}
 			case *RemoteEndPointClosing:
+				// Like above, we need to check if there is a ConnectionCreated
+				// message that we sent but that the remote endpoint has not yet
+				// received. However, since we are in 'closing' state, the only
+				// way this may happen is when we sent a ConnectionCreated,
+				// ConnectionClosed, and CloseSocket message, none of which have
+				// yet been received. It's sufficient to check that the peer has
+				// not seen the ConnectionCreated message. In case they have seen
+				// it (so that lastReceivedId == lastSendId vst) then they must
+				// have seen the other messages or else they would not have sent
+				// CloseSocket.
+				// We leave the endpoint in closing state in that case.
 				vst := &st._2
 				if lastReceivedId != lastSentId(vst) {
 					return nil
@@ -416,6 +435,9 @@ func handleIncomingMessages(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEnd
 				}
 				ourEndPoint.removeRemoteEndPoint(theirEndPoint)
 				theirState.value = RemoteEndPointClosed{}
+				// Nothing to do, but we want to indicate that the socket
+				// really did close.
+				notify(st._1)
 				return func() {}
 			case *RemoteEndPointFailed:
 				fmt.Println("closeSocket:", st._1)
@@ -723,7 +745,7 @@ func (ourEndPoint *LocalEndPoint) findRemoteEndPoint(theirAddress EndPointAddres
 		return theirState.value
 	}()
 
-	// fmt.Println("findRemoteEndPoint:snapshot", findOrigin, snapshot)
+	fmt.Println("findRemoteEndPoint:snapshot", findOrigin, snapshot)
 
 	switch st := snapshot.(type) {
 	case *RemoteEndPointInvalid:
@@ -735,6 +757,7 @@ func (ourEndPoint *LocalEndPoint) findRemoteEndPoint(theirAddress EndPointAddres
 		return theirEndPoint, false, nil
 	case *RemoteEndPointClosing:
 		//TODO: wait resolved
+		wait(st._1)
 		return ourEndPoint.findRemoteEndPoint(theirAddress, findOrigin)
 	case RemoteEndPointClosed:
 		return ourEndPoint.findRemoteEndPoint(theirAddress, findOrigin)
