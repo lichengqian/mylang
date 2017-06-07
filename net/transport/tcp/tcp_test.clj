@@ -337,3 +337,33 @@
     (wait serverDone))
     
 
+;;; | Test what happens when a remote endpoint sends a connection request to our
+;;; transport for an endpoint it already has a connection to
+(deftest unnecessaryConnect
+    (let 
+        numThreads 10
+        serverAddr (chan EndPointAddress 1)
+        clientDone (newNotifier))
+    (println "testUnnecessaryConnect")
+
+    (go
+        (<- transport (CreateTransport "127.0.0.1:9999"))
+        (<- endpoint (transport.NewEndPoint 1000))
+        ;; Since we're lying about the server's address, we have to manually
+        ;; construct the proper address. If we used its actual address, the clients
+        ;; would try to resolve "128.0.0.1" and then would fail due to invalid
+        ;; address.)
+        (serverAddr<- (endpoint.Address)))
+
+    (go
+        ;; We pick an address < 128.0.0.1 so that this is not rejected purely because of the "crossed" check
+        (let ourAddress (newEndPointAddress "127.0.0.1:8888" 1000))
+
+        ;; We should only get a single 'Accepted' reply
+        (let gotAccepted (newNotifier)
+             addr <-serverAddr)
+        (mockUnnecessaryConnect numThreads ourAddress addr gotAccepted)
+        (wait gotAccepted)
+        (notify clientDone))
+
+    (wait clientDone))
