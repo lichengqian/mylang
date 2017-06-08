@@ -91,9 +91,9 @@
     CreateNewConnection
     CloseConnection
     CloseSocket
-    CloseEndPoint
-    ProbeSocket
-    ProbeSocketAct)
+    CloseEndPoint)
+    ; ProbeSocket
+    ; ProbeSocketAct)
 
 (encode! ControlHeader)
 (decode! ControlHeader)
