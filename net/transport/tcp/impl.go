@@ -1054,19 +1054,6 @@ func (tp *TCPTransport) createLocalEndPoint(epid EndPointId) (*LocalEndPoint, er
 	}
 }
 
-func (tp *TCPTransport) closeLocalEndPoint(epid EndPointId) error {
-	tp.transportState.lock.Lock()
-	defer tp.transportState.lock.Unlock()
-
-	endpoints := tp.transportState.value.(*TransPortValid)._1._localEndPoints
-	if _, ok := endpoints[epid]; ok {
-		// close(ep.connections)
-		delete(endpoints, epid)
-		return nil
-	}
-	return errors.New("endpoinyt not exist!")
-}
-
 func createConnectionId(hcid HeavyweightConnectionId, lcid LightweightConnectionId) ConnectionId {
 	return ConnectionId(uint64(uint32(hcid))<<32 | uint64(uint32(lcid)))
 }
