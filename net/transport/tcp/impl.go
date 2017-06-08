@@ -36,6 +36,11 @@ func createTCPTransport(lAddr string) (*TCPTransport, error) {
 // API functions                                                              --
 //------------------------------------------------------------------------------
 
+// | Close the transport
+func (transport *TCPTransport) apiCloseTransport(evs []Event) error {
+	return errors.New("not implemented")
+}
+
 // | Create a new endpoint
 func (transport *TCPTransport) apiNewEndPoint(epid EndPointId) (*EndPoint, error) {
 	ourEndPoint, err := transport.createLocalEndPoint(epid)

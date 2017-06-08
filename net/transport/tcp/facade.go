@@ -1,7 +1,6 @@
 package tcp
 
 import (
-	"errors"
 	"fmt"
 )
 
@@ -52,7 +51,7 @@ func CreateTransport(lAddr string) (*Transport, error) {
 func (transport *TCPTransport) ToTransport() *Transport {
 	return &Transport{
 		Close: func() error {
-			return errors.New("not implemented")
+			return transport.apiCloseTransport([]Event{})
 		},
 		NewEndPoint: func(epid EndPointId) (*EndPoint, error) {
 			return transport.apiNewEndPoint(epid)
