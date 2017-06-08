@@ -80,18 +80,19 @@ func (ourEndPoint *LocalEndPoint) apiConnect(theirAddress EndPointAddress) (*Con
 		panic("apiConnect failed!")
 	}
 
+	connAlive := NewBool(true)
 	return &Connection{
 		Close: func() error {
-			return ourEndPoint.apiClose(theirEndPoint, connId)
+			return ourEndPoint.apiClose(theirEndPoint, connId, connAlive)
 		},
 		Write: func(msg []byte) (int, error) {
-			return ourEndPoint.apiSend(theirEndPoint, connId, msg)
+			return ourEndPoint.apiSend(theirEndPoint, connId, msg, connAlive)
 		},
 	}, nil
 }
 
 // | Close a connection
-func (ourEndPoint *LocalEndPoint) apiClose(theirEndPoint *RemoteEndPoint, connId LightweightConnectionId) error {
+func (ourEndPoint *LocalEndPoint) apiClose(theirEndPoint *RemoteEndPoint, connId LightweightConnectionId, connAlive *AtomicBool) error {
 	fmt.Println("apiClose:", ourEndPoint.localAddress, "->", theirEndPoint.remoteAddress, connId)
 	conn := func() net.Conn {
 		theirState := theirEndPoint.remoteState
@@ -101,11 +102,16 @@ func (ourEndPoint *LocalEndPoint) apiClose(theirEndPoint *RemoteEndPoint, connId
 
 		switch st := theirState.value.(type) {
 		case *RemoteEndPointValid:
-			vst := &st._1
-			vst._remoteOutgoing--
-			fmt.Println("	remoteOutgoing--:", vst._remoteOutgoing)
-			//sched action
-			return vst.remoteConn
+			if connAlive.IsSet() {
+				connAlive.UnSet()
+
+				vst := &st._1
+				vst._remoteOutgoing--
+				fmt.Println("	remoteOutgoing--:", vst._remoteOutgoing)
+				//sched action
+				return vst.remoteConn
+			}
+			return nil
 		default:
 			return nil
 		}
@@ -119,7 +125,7 @@ func (ourEndPoint *LocalEndPoint) apiClose(theirEndPoint *RemoteEndPoint, connId
 }
 
 // | Send data across a connection
-func (ourEndPoint *LocalEndPoint) apiSend(theirEndPoint *RemoteEndPoint, connId LightweightConnectionId, msg []byte) (int, error) {
+func (ourEndPoint *LocalEndPoint) apiSend(theirEndPoint *RemoteEndPoint, connId LightweightConnectionId, msg []byte, connAlive *AtomicBool) (int, error) {
 	fmt.Println("apiSend", connId)
 	action, err := func() (func(), error) {
 		theirState := &theirEndPoint.remoteState
@@ -130,15 +136,24 @@ func (ourEndPoint *LocalEndPoint) apiSend(theirEndPoint *RemoteEndPoint, connId 
 		case *RemoteEndPointInvalid, *RemoteEndPointInit:
 			ourEndPoint.relyViolation("apiSend")
 		case *RemoteEndPointValid:
-			vst := &st._1
-			conn := vst.remoteConn
-			return func() {
-				connId.sendMsg(msg, conn)
-			}, nil
+			if connAlive.IsSet() {
+				vst := &st._1
+				conn := vst.remoteConn
+				return func() {
+					connId.sendMsg(msg, conn)
+				}, nil
+			}
+			return nil, errors.New("Connection closed")
 		case *RemoteEndPointClosing, RemoteEndPointClosed:
-			ourEndPoint.relyViolation("apiSend")
+			if connAlive.IsSet() {
+				ourEndPoint.relyViolation("apiSend")
+			}
+			return nil, errors.New("Connection closed")
 		case *RemoteEndPointFailed:
-			return nil, st._1
+			if connAlive.IsSet() {
+				return nil, st._1
+			}
+			return nil, errors.New("Connection closed")
 		}
 		return nil, errors.New("apiSend error")
 	}()

@@ -8,9 +8,9 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"sync/atomic"
 )
 
-type Closer func() error
 type Action func()
 type Notifier chan struct{}
 
@@ -24,6 +24,32 @@ func wait(n Notifier) {
 
 func notify(n Notifier) {
 	n <- struct{}{}
+}
+
+type AtomicBool int32
+
+// NewBool creates an AtomicBool with given default value
+func NewBool(ok bool) *AtomicBool {
+	ab := new(AtomicBool)
+	if ok {
+		ab.Set()
+	}
+	return ab
+}
+
+// Set sets the Boolean to true
+func (ab *AtomicBool) Set() {
+	atomic.StoreInt32((*int32)(ab), 1)
+}
+
+// UnSet sets the Boolean to false
+func (ab *AtomicBool) UnSet() {
+	atomic.StoreInt32((*int32)(ab), 0)
+}
+
+// IsSet returns whether the Boolean is true
+func (ab *AtomicBool) IsSet() bool {
+	return atomic.LoadInt32((*int32)(ab)) == 1
 }
 
 func encodeEndPointAddress(ep EndPointAddress) []byte {
