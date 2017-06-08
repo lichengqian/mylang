@@ -424,4 +424,34 @@
     (wait serverDone)
     (wait clientDone))
 
+;;; | Ensure that an end point closes up OK even if the peer disobeys the
+;;;   protocol.)
+(deftest closeEndPoint
+    (let
+        serverAddr (chan EndPointAddress 1)
+        serverDone (newNotifier))
+    
+    ;; A server which accepts one connection and then attempts to close the
+    ;; end point.)
+    (go
+        (<- transport (CreateTransport "127.0.0.1:9999"))
+        (<- ep (transport.NewEndPoint 1000))
+        (serverAddr<- (ep.Address))
 
+        (let event (ep.Receive))
+        (println "want ConnectionOpened" event)
+
+        (ep.Close)
+        (notify serverDone))
+
+    ;; A nefarious client which connects to the server then stops responding.
+    (go
+        (let 
+            ourAddr (newEndPointAddress "127.0.0.1:8888" 100)
+            theirAddr <-serverAddr)
+        (<- sock (socketToEndPoint_ ourAddr theirAddr))
+        (sendCreateNewConnection 1024 sock)
+        (wait serverDone)
+        (sock.Close))
+
+    (wait serverDone))
