@@ -1,6 +1,7 @@
 (ns clj-compiler
     (:require [clojure.edn :as edn]
-            [clojure.string :as str])
+            [clojure.string :as str]
+            [clojure.java.shell :refer [sh]])
     (:use [mylang]
           [language.common]
           [language.golang]))
@@ -35,3 +36,17 @@
      (println (_compile path)))
     ([path target]
      (spit target (_compile path))))
+
+(defn go-target
+    [path]
+    (str/replace path #"clj" "go"))
+
+(defn go-compile
+    "编译一个clj文件，生成同名的golang文件,并格式化"
+    ([path]
+     (go-compile path (go-target path)))
+            
+    ([path target]
+     (set-language :language.golang/golang)
+     (spit target (_compile path))
+     (sh "gofmt" "-w" target)))
