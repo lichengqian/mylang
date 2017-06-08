@@ -155,7 +155,11 @@ data class Golang(val emit: IFn, val emitType: IFn, val goImport: IFn) {
     }
 
     private fun Any.fnType(b: StringBuilder) :StringBuilder {
-        val types = (this as IPersistentList).seq()
+        val types = when (this) {
+            is IPersistentList -> this.seq()
+            is IPersistentVector -> this.seq()
+            else -> throw RuntimeException("unsupport fn type")
+        } 
 
         b.append("func(")
         var first = true
@@ -177,6 +181,36 @@ data class Golang(val emit: IFn, val emitType: IFn, val goImport: IFn) {
     }
 
     fun emitFnType(args: Any) = args.fnType(StringBuilder()).toString()
+
+    fun emitFnDecl(args: Any, rettype: Any) :String {
+        val b = StringBuilder()
+        val types = when (args) {
+            is IPersistentList -> args.seq()
+            is IPersistentVector -> args.seq()
+            else -> throw RuntimeException("unsupport fn type")
+        } 
+
+        b.append("func(")
+        var first = true
+        var ps = types
+        while (ps != null && ps.count() > 0) {
+            if (first) {
+                first = false
+            }
+            else {
+                b.append(", ")
+            }
+
+            b.append(emit.invoke(ps.first()))
+            ps = ps.next()
+
+            b.append(" " + emitType.invoke(ps.first()))
+            ps = ps.next()
+        }
+        b.append(") ").append(emitType.invoke(rettype))
+
+        return b.toString()
+    }
 
     fun macro_encode(name: Any, fields: Iterable<Any>) = 
         render {

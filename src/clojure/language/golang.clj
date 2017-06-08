@@ -389,8 +389,8 @@
         (str (emit-var var) " := " (emit expr)))))
   
 (defmethod emit-special [::golang 'let-fn]
-  [_ [_ n & body]]
-  (str n " := func() {\n" (emit-do body) "}"))
+  [_ [_ n args rettype & body]]
+  (str n " := " (.emitFnDecl golang args rettype) " {\n" (emit-do body) "}"))
   
 (defmethod emit-special [::golang 'go]
   [_ [_ & body]]
