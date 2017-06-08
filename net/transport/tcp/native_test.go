@@ -21,13 +21,18 @@ func assertConnectionOpend(t *testing.T, event Event) *EndPointAddress {
 
 }
 
+func testAcceptConn(conn net.Conn) {
+	// Initial setup
+	ReadUint32(conn)
+	ReadWithLen(conn, 1000)
+
+	writeConnectionRequestResponse(ConnectionRequestAccepted{}, conn)
+}
+
 func mockEarlyDisconnect(lAddr string) (EndPointAddress, error) {
 	handler := func(conn net.Conn) {
 		// Initial setup
-		ReadUint32(conn)
-		ReadWithLen(conn, 1000)
-
-		writeConnectionRequestResponse(ConnectionRequestAccepted{}, conn)
+		testAcceptConn(conn)
 
 		// Server opens  a logical connection
 		ch, err := ReadUint32(conn)
@@ -56,10 +61,7 @@ func mockEarlyDisconnect(lAddr string) (EndPointAddress, error) {
 func mockEarlyCloseSocket(lAddr string) (EndPointAddress, error) {
 	handler := func(conn net.Conn) {
 		// Initial setup
-		ReadUint32(conn)
-		ReadWithLen(conn, 1000)
-
-		writeConnectionRequestResponse(ConnectionRequestAccepted{}, conn)
+		testAcceptConn(conn)
 
 		// Server opens  a logical connection
 		ch, err := ReadUint32(conn)

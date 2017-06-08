@@ -46,6 +46,10 @@ func CreateTransport(lAddr string) (*Transport, error) {
 	if err != nil {
 		return nil, err
 	}
+	return transport.ToTransport(), nil
+}
+
+func (transport *TCPTransport) ToTransport() *Transport {
 	return &Transport{
 		Close: func() error {
 			return errors.New("not implemented")
@@ -53,7 +57,7 @@ func CreateTransport(lAddr string) (*Transport, error) {
 		NewEndPoint: func(epid EndPointId) (*EndPoint, error) {
 			return transport.apiNewEndPoint(epid)
 		},
-	}, nil
+	}
 }
 
 func (addr EndPointAddress) String() string {

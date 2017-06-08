@@ -374,3 +374,54 @@
 ;;; | Test what happens when the transport breaks completely)
 ;;; TODO
 
+;;; | Test that a second call to 'connect' might succeed even if the first
+;;; failed. This is a TCP specific test rather than an endpoint specific test
+;;; because we must manually create the endpoint address to match an endpoint we
+;;; have yet to set up.
+;;; Then test that we get a connection lost message after the remote endpoint
+;;; suddenly closes the socket, and that a subsequent 'connect' allows us to
+;;; re-establish a connection to the same endpoint
+;;; TODO
+
+(deftest invalidCloseConnection
+    (<- internal (createTCPTransport "127.0.0.1:9999"))
+    (let 
+        transport (internal.ToTransport)
+        serverDone (newNotifier)
+        clientDone (newNotifier)
+        serverAddr (chan EndPointAddress 1))
+
+    ;; server
+    (go 
+        (<- endpoint (transport.NewEndPoint 1000))
+        (serverAddr<- (endpoint.Address))
+
+        (let event (endpoint.Receive))
+        (println "want ConnectionOpened" event)
+        
+        ;; At this point the client sends an invalid request, so we terminate the
+        ;; connection
+        (let event2 (endpoint.Receive))
+        (println "want ErrorEvent" event2)
+        
+        (notify serverDone))
+
+    ;; client
+    (go
+        (<- endpoint (transport.NewEndPoint 2000))
+        (let
+            ourAddr (endpoint.Address)
+            theirAddr <-serverAddr)
+        ;; Connect so that we have a TCP connection)
+        (endpoint.Dial theirAddr)
+
+        ;; Get a handle on the TCP connection and manually send an invalid CloseConnection request
+        (<- sock (internal.internalSocketBetween ourAddr theirAddr))
+        (sendCloseConnection 12345 sock)
+
+        (notify clientDone))
+    
+    (wait serverDone)
+    (wait clientDone))
+
+
