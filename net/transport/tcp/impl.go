@@ -94,7 +94,7 @@ func (ourEndPoint *LocalEndPoint) apiConnect(theirAddress EndPointAddress) (*Con
 // | Close a connection
 func (ourEndPoint *LocalEndPoint) apiClose(theirEndPoint *RemoteEndPoint, connId LightweightConnectionId, connAlive *AtomicBool) error {
 	fmt.Println("apiClose:", ourEndPoint.localAddress, "->", theirEndPoint.remoteAddress, connId)
-	conn := func() net.Conn {
+	vst := func() *ValidRemoteEndPointState {
 		theirState := theirEndPoint.remoteState
 
 		theirState.Lock()
@@ -109,7 +109,7 @@ func (ourEndPoint *LocalEndPoint) apiClose(theirEndPoint *RemoteEndPoint, connId
 				vst._remoteOutgoing--
 				fmt.Println("	remoteOutgoing--:", vst._remoteOutgoing)
 				//sched action
-				return vst.remoteConn
+				return vst
 			}
 			return nil
 		default:
@@ -117,8 +117,10 @@ func (ourEndPoint *LocalEndPoint) apiClose(theirEndPoint *RemoteEndPoint, connId
 		}
 	}()
 
-	if conn != nil {
-		sendCloseConnection(uint32(connId), conn)
+	if vst != nil {
+		vst.sendOn(func(conn net.Conn) {
+			sendCloseConnection(uint32(connId), conn)
+		})
 	}
 	ourEndPoint.closeIfUnused(theirEndPoint)
 	return nil
@@ -138,9 +140,10 @@ func (ourEndPoint *LocalEndPoint) apiSend(theirEndPoint *RemoteEndPoint, connId 
 		case *RemoteEndPointValid:
 			if connAlive.IsSet() {
 				vst := &st._1
-				conn := vst.remoteConn
 				return func() {
-					connId.sendMsg(msg, conn)
+					vst.sendOn(func(conn net.Conn) {
+						connId.sendMsg(msg, conn)
+					})
 				}, nil
 			}
 			return nil, ErrConnectionClosed
@@ -204,7 +207,8 @@ func (transport *TCPTransport) apiCloseEndPoint(evs []Event, ourEndPoint *LocalE
 			// guaranteed that no other actions will be scheduled after this
 			// one.
 			vst := &st._1
-			sendCloseEndPoint(vst.remoteConn)
+			vst.sendOn(sendCloseEndPoint)
+			// sendCloseEndPoint(vst.remoteConn)
 			tryShutdownSocketBoth(vst.remoteConn)
 			// remoteSocketClosed(vst)
 
@@ -523,7 +527,9 @@ func handleIncomingMessages(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEnd
 					ourEndPoint.removeRemoteEndPoint(theirEndPoint)
 					theirState.value = RemoteEndPointClosed{}
 					return func() {
-						sendCloseSocket(uint32(vst._remoteLastIncoming), vst.remoteConn)
+						vst.sendOn(func(conn net.Conn) {
+							sendCloseSocket(uint32(vst._remoteLastIncoming), conn)
+						})
 					}
 				}
 			case *RemoteEndPointClosing:
@@ -723,9 +729,10 @@ func (ourEndPoint *LocalEndPoint) createConnectionTo_go(theirAddress EndPointAdd
 			vst := &st._1
 			connId := vst._remoteNextConnOutId
 			vst._remoteNextConnOutId = connId + 1
-			conn := vst.remoteConn
 			action = func() {
-				sendCreateNewConnection(uint32(connId), conn)
+				vst.sendOn(func(conn net.Conn) {
+					sendCreateNewConnection(uint32(connId), conn)
+				})
 			}
 			return connId, nil
 		case *RemoteEndPointInvalid:
@@ -883,6 +890,13 @@ func (ourEndPoint *LocalEndPoint) findRemoteEndPoint(theirAddress EndPointAddres
 	return nil, false, nil
 }
 
+// | Send a payload over a heavyweight connection (thread safe)
+func (vst *ValidRemoteEndPointState) sendOn(sender func(net.Conn)) {
+	vst.remoteSendLock.Lock()
+	defer vst.remoteSendLock.Unlock()
+	sender(vst.remoteConn)
+}
+
 // | Send a CloseSocket request if the remote endpoint is unused
 func (ourEndPoint *LocalEndPoint) closeIfUnused(theirEndPoint *RemoteEndPoint) {
 	theirState := &theirEndPoint.remoteState
@@ -896,9 +910,10 @@ func (ourEndPoint *LocalEndPoint) closeIfUnused(theirEndPoint *RemoteEndPoint) {
 			vst := &st._1
 			if vst._remoteOutgoing == 0 && len(vst._remoteIncoming) == 0 {
 				theirState.value = &RemoteEndPointClosing{newNotifier(), *vst}
-				conn := vst.remoteConn
 				return func() {
-					sendCloseSocket(uint32(vst._remoteLastIncoming), conn)
+					vst.sendOn(func(conn net.Conn) {
+						sendCloseSocket(uint32(vst._remoteLastIncoming), conn)
+					})
 				}
 			}
 		}

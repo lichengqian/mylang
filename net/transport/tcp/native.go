@@ -211,7 +211,7 @@ func sendCloseSocket(i uint32, w io.Writer) {
 	WriteUint32(i, w)
 }
 
-func sendCloseEndPoint(w io.Writer) {
+func sendCloseEndPoint(w net.Conn) {
 	fmt.Println("sending CloseEndPoint")
 	WriteUint32(uint32(CloseEndPoint{}.tagControlHeader()), w)
 }
