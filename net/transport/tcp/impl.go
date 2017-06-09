@@ -832,7 +832,7 @@ func (ourEndPoint *LocalEndPoint) findRemoteEndPoint(theirAddress EndPointAddres
 				return theirEndPoint, true, nil
 			}
 		default: // LocalEndPointClosed
-			return nil, false, errors.New("Local endpoint closed")
+			return nil, false, ErrEndPointClosed
 		}
 	}()
 
@@ -1097,7 +1097,7 @@ func (transport *TCPTransport) internalSocketBetween(ourAddress EndPointAddress,
 				return nil, errors.New("RemoteEndPoint not found")
 			}
 		}
-		return nil, errors.New("Local endpoint closed")
+		return nil, ErrEndPointClosed
 	}()
 
 	if err != nil {
@@ -1135,7 +1135,10 @@ const (
 
 	// | We reserve some connection IDs for special heavyweight connections
 	firstNonReservedHeavyweightConnectionId = HeavyweightConnectionId(1)
+)
 
+// | Parameters for setting up the TCP transport
+var (
 	// | Maximum length (in bytes) for a peer's address.
 	// If a peer attempts to send an address of length exceeding the limit,
 	// the connection will be refused (socket will close).
