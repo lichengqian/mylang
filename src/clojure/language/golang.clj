@@ -13,10 +13,7 @@
 
 (derive ::golang :language.common/common-impl)
 
-(defn- go-import [path]
-  (add-import (str "import \"" path "\"")))
-
-(def ^:private golang (Golang. emit emit-type go-import))
+(def ^:private golang (Golang. emit emit-type add-import))
 
 ;;; * Keyword and Operator Classes
 (def infix-operators
@@ -120,7 +117,7 @@
 
 (defemit-special ::golang
   'ns [path] (set-ns (emit path))
-  'import [path] (go-import path)
+  'import [path] (add-import path)
   'not [expr] (str "!(" (emit expr) ")")
   'chan [t n] (str "make(chan " (emit t) ", " (emit n) ")")
   '<- [v expr]
@@ -183,11 +180,11 @@
   (common-string/quoted (string/join " " (map emit args))))
 
 (defmethod emit-special [::golang 'println] [type [println & args]]
-  (go-import "fmt")
+  (add-import "fmt")
   (str "fmt.Println(" (string/join ", " (map emit args)) ")"))
 
 (defmethod emit-special [::golang 'print] [type [print & args]]
-  (go-import "fmt")
+  (add-import "fmt")
   (str "fmt.Print(" (string/join ", " (map emit args)) ")"))
 
 (defemit ::golang expr
@@ -410,14 +407,16 @@
 
 (defmethod emit-special [::golang 'deferr]
   [_ [_ & body]]
-  (go-import "errors")
+  (add-import "errors")
   (->> (partition 2 body)
-       (map (fn [[k v]] (str "var Err" (name k) " = errors.New(" (emit v) ")")))
-       (string/join "\n")))
+       (map (fn [[k v]] (str "Err" (name k) " = errors.New(" (emit v) ")")))
+       (string/join "\n")
+       paren
+       (str "var ")))
 
 (defmethod emit-special [::golang 'deftest]
   [_ [_ n & body]]
-  (go-import "testing")
+  (add-import "testing")
   (with-bindings {#'*error-code* "t.Error(err)\n return\n"}
     (.emitTest golang n body)))
 
@@ -436,7 +435,7 @@
   [name & args]
   (case (str name)
     "sleep" (do
-                (go-import "time")
+                (add-import "time")
                 (str "time.Sleep(" (first args) " * time.Millisecond)"))
     (if (seq args)
       (str (emit name) "(" (reduce str (interpose "," args)) ")")
@@ -453,10 +452,10 @@
     "ByteString" "[]byte"
     "Error" "error"
     "Chan" "chan"
-    "Lock"  (do (go-import "sync") "sync.Mutex")
+    "Lock"  (do (add-import "sync") "sync.Mutex")
 
-    "Listener" (do (go-import "net") "net.Listener")
-    "Conn" (do (go-import "net") "net.Conn")
+    "Listener" (do (add-import "net") "net.Listener")
+    "Conn" (do (add-import "net") "net.Conn")
     (emit t)))
 
 (defmethod emit-type-constructor ::golang
@@ -499,3 +498,11 @@
         io/file
         .getParentFile
         .getName))
+
+(defmethod emit-import ::golang
+    [imports]
+    (->> imports
+        (map emit)
+        (string/join "\n")
+        paren
+        (str "import ")))

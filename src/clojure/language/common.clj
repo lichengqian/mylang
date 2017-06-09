@@ -331,3 +331,13 @@
        "{\n" chained-cmds "\n } || { " (checked-fail message)
        "} >&2 " \newline
        (checked-success message) \newline))))
+
+;;; utils 
+(defn paren [s]
+    (str "(" s ")"))
+
+(defn bracket [s]
+    (str "[" s "]"))
+
+(defn brace [s]
+    (str "{" s "}"))

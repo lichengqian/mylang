@@ -488,3 +488,6 @@
 
 (defmulti emit-ns
   (fn [s] *script-language*))
+
+(defmulti emit-import
+  (fn [s] *script-language*))

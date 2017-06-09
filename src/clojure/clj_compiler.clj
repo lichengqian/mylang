@@ -19,7 +19,7 @@
           _imports (into #{} (:import *compiler-context*))
         ;   _ (println _imports)
           _out (str (emit-ns _ns)
-                    (apply str (map #(str % "\n") _imports))
+                    (emit-import _imports)
                     "\n"
                     content)]
         _out))
