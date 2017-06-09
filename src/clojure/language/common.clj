@@ -309,6 +309,7 @@
 (def ^:dynamic *status-marker* "#> ")
 (def ^:dynamic *status-fail* " : FAIL")
 (def ^:dynamic *status-success* " : SUCCESS")
+(def ^:dynamic *error-code* "*error-code*")
 
 (defn checked-start [message]
   (str "echo '" message "...';"))

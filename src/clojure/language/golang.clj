@@ -126,7 +126,9 @@
     (str (emit v)
         ", err := "
         (emit expr)
-        "\n  if err != nil {\n t.Error(err)\n return\n }"))
+        "\n  if err != nil {\n "
+        *error-code*
+        " }"))
 
 (defmethod emit-special [::golang 'writechan] [_ [c v]]
   (str (emit c) " " (emit v)))
@@ -408,7 +410,8 @@
 (defmethod emit-special [::golang 'deftest]
   [_ [_ n & body]]
   (go-import "testing")
-  (.emitTest golang n body))
+  (with-bindings {#'*error-code* "t.Error(err)\n return\n"}
+    (.emitTest golang n body)))
 
 (defmethod emit-special [::golang 'tlog]
   [_ [_ & args]]
@@ -459,7 +462,7 @@
     "MVar" (string/join "\n"
             ["struct {"
              (str "  value " (emit-type (first args)))
-             "  lock sync.Mutex"
+             "  sync.Mutex"
              "}"])
     (->> args
         (map emit-type)

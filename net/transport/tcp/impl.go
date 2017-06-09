@@ -17,7 +17,7 @@ func createTCPTransport(lAddr string) (*TCPTransport, error) {
 		transportAddr: TransportAddr(lAddr),
 		transportState: struct {
 			value TransportState
-			lock  sync.Mutex
+			sync.Mutex
 		}{
 			value: state,
 		},
@@ -97,8 +97,8 @@ func (ourEndPoint *LocalEndPoint) apiClose(theirEndPoint *RemoteEndPoint, connId
 	conn := func() net.Conn {
 		theirState := theirEndPoint.remoteState
 
-		theirState.lock.Lock()
-		defer theirState.lock.Unlock()
+		theirState.Lock()
+		defer theirState.Unlock()
 
 		switch st := theirState.value.(type) {
 		case *RemoteEndPointValid:
@@ -129,8 +129,8 @@ func (ourEndPoint *LocalEndPoint) apiSend(theirEndPoint *RemoteEndPoint, connId 
 	fmt.Println("apiSend", connId)
 	action, err := func() (func(), error) {
 		theirState := &theirEndPoint.remoteState
-		theirState.lock.Lock()
-		theirState.lock.Unlock()
+		theirState.Lock()
+		theirState.Unlock()
 
 		switch st := theirState.value.(type) {
 		case *RemoteEndPointInvalid, *RemoteEndPointInit:
@@ -172,8 +172,8 @@ func (transport *TCPTransport) apiCloseEndPoint(evs []Event, ourEndPoint *LocalE
 	// Close the local endpoint
 	ourState := func() *ValidLocalEndPointState {
 		st := &ourEndPoint.localState
-		st.lock.Lock()
-		defer st.lock.Unlock()
+		st.Lock()
+		defer st.Unlock()
 
 		switch state := st.value.(type) {
 		case *LocalEndPointValid:
@@ -190,8 +190,8 @@ func (transport *TCPTransport) apiCloseEndPoint(evs []Event, ourEndPoint *LocalE
 		closed := &RemoteEndPointFailed{errors.New("apiCloseEndPoint")}
 
 		theirState := &theirEndPoint.remoteState
-		theirState.lock.Lock()
-		defer theirState.lock.Unlock()
+		theirState.Lock()
+		defer theirState.Unlock()
 
 		switch st := theirState.value.(type) {
 		case *RemoteEndPointInit:
@@ -271,8 +271,8 @@ func (tp *TCPTransport) handleConnectionRequest(conn net.Conn) {
 	// dispatch to endpoint
 	// we need this clojure to avoid dead lock!!!
 	ep, err := func() (*LocalEndPoint, error) {
-		tp.transportState.lock.Lock()
-		defer tp.transportState.lock.Unlock()
+		tp.transportState.Lock()
+		defer tp.transportState.Unlock()
 
 		switch ts := tp.transportState.value.(type) {
 		case *TransPortValid:
@@ -345,8 +345,8 @@ func handleIncomingMessages(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEnd
 	prematureExit := func(err error) {
 		fmt.Println("in prematureExit:", err)
 		theirState := &theirEndPoint.remoteState
-		theirState.lock.Lock()
-		defer theirState.lock.Unlock()
+		theirState.Lock()
+		defer theirState.Unlock()
 
 		switch st := theirState.value.(type) {
 		case *RemoteEndPointInvalid, *RemoteEndPointInit, RemoteEndPointClosed:
@@ -360,8 +360,8 @@ func handleIncomingMessages(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEnd
 			notify(st._1)
 			theirEndPoint.remoteState.value = &RemoteEndPointFailed{err}
 		case *RemoteEndPointFailed:
-			ourEndPoint.localState.lock.Lock()
-			defer ourEndPoint.localState.lock.Unlock()
+			ourEndPoint.localState.Lock()
+			defer ourEndPoint.localState.Unlock()
 
 			if _, ok := ourEndPoint.localState.value.(*LocalEndPointValid); ok {
 				code := EventConnectionLost{theirAddress}
@@ -372,8 +372,8 @@ func handleIncomingMessages(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEnd
 
 	sock, err := func() (net.Conn, error) {
 		theirState := &theirEndPoint.remoteState
-		theirState.lock.Lock()
-		defer theirState.lock.Unlock()
+		theirState.Lock()
+		defer theirState.Unlock()
 
 		switch st := theirState.value.(type) {
 		case *RemoteEndPointInvalid:
@@ -431,8 +431,8 @@ func handleIncomingMessages(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEnd
 	// Create a new connection
 	createdNewConnection := func(lcid LightweightConnectionId) error {
 		theirState := &theirEndPoint.remoteState
-		theirState.lock.Lock()
-		defer theirState.lock.Unlock()
+		theirState.Lock()
+		defer theirState.Unlock()
 
 		switch st := theirState.value.(type) {
 		case *RemoteEndPointInvalid:
@@ -469,8 +469,8 @@ func handleIncomingMessages(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEnd
 	// because otherwise we should not decrement the reference count
 	closeConnection := func(lcid LightweightConnectionId) error {
 		theirState := &theirEndPoint.remoteState
-		theirState.lock.Lock()
-		defer theirState.lock.Unlock()
+		theirState.Lock()
+		defer theirState.Unlock()
 
 		switch st := theirState.value.(type) {
 		case *RemoteEndPointInvalid:
@@ -500,8 +500,8 @@ func handleIncomingMessages(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEnd
 	closeSocket := func(sock net.Conn, lastReceivedId LightweightConnectionId) (bool, error) {
 		action := func() func() {
 			theirState := &theirEndPoint.remoteState
-			theirState.lock.Lock()
-			defer theirState.lock.Unlock()
+			theirState.Lock()
+			defer theirState.Unlock()
 
 			fmt.Println("closing socket:", theirState.value.String())
 			switch st := theirState.value.(type) {
@@ -583,8 +583,8 @@ func handleIncomingMessages(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEnd
 
 	closeEndPoint := func() {
 		theirState := &theirEndPoint.remoteState
-		theirState.lock.Lock()
-		defer theirState.lock.Unlock()
+		theirState.Lock()
+		defer theirState.Unlock()
 
 		switch st := theirState.value.(type) {
 		case *RemoteEndPointValid:
@@ -686,8 +686,8 @@ func (ourEndPoint *LocalEndPoint) createConnectionTo_go(theirAddress EndPointAdd
 	case ConnectionRequestCrossed:
 		func() {
 			theirState := &theirEndPoint.remoteState
-			theirState.lock.Lock()
-			defer theirState.lock.Unlock()
+			theirState.Lock()
+			defer theirState.Unlock()
 
 			switch theirState.value.(type) {
 			case *RemoteEndPointInit:
@@ -715,8 +715,8 @@ func (ourEndPoint *LocalEndPoint) createConnectionTo_go(theirAddress EndPointAdd
 	var action func()
 	connId, err := func() (LightweightConnectionId, error) {
 		theirState := &theirEndPoint.remoteState
-		theirState.lock.Lock()
-		defer theirState.lock.Unlock()
+		theirState.Lock()
+		defer theirState.Unlock()
 
 		switch st := theirState.value.(type) {
 		case *RemoteEndPointValid:
@@ -778,8 +778,8 @@ func (ourEndPoint *LocalEndPoint) setupRemoteEndPoint(theirEndPoint *RemoteEndPo
 		ourEndPoint.resolveInit(theirEndPoint, st)
 	case ConnectionRequestCrossed:
 		defer sock.Close()
-		theirState.lock.Lock()
-		defer theirState.lock.Unlock()
+		theirState.Lock()
+		defer theirState.Unlock()
 
 		switch st := theirState.value.(type) {
 		case *RemoteEndPointInit:
@@ -807,8 +807,8 @@ func (ourEndPoint *LocalEndPoint) findRemoteEndPoint(theirAddress EndPointAddres
 	theirEndPoint, isNew, err := func() (*RemoteEndPoint, bool, error) {
 		ourState := &ourEndPoint.localState
 
-		ourState.lock.Lock()
-		defer ourState.lock.Unlock()
+		ourState.Lock()
+		defer ourState.Unlock()
 
 		switch state := ourState.value.(type) {
 		case *LocalEndPointValid:
@@ -823,7 +823,7 @@ func (ourEndPoint *LocalEndPoint) findRemoteEndPoint(theirAddress EndPointAddres
 					remoteAddress: theirAddress,
 					remoteState: struct {
 						value RemoteState
-						lock  sync.Mutex
+						sync.Mutex
 					}{value: theirState},
 					remoteId: vst._nextConnInId,
 				}
@@ -843,8 +843,8 @@ func (ourEndPoint *LocalEndPoint) findRemoteEndPoint(theirAddress EndPointAddres
 
 	snapshot := func() RemoteState {
 		theirState := &theirEndPoint.remoteState
-		theirState.lock.Lock()
-		defer theirState.lock.Unlock()
+		theirState.Lock()
+		defer theirState.Unlock()
 
 		switch p := theirState.value.(type) {
 		case *RemoteEndPointValid:
@@ -888,8 +888,8 @@ func (ourEndPoint *LocalEndPoint) closeIfUnused(theirEndPoint *RemoteEndPoint) {
 	theirState := &theirEndPoint.remoteState
 
 	action := func() func() {
-		theirState.lock.Lock()
-		theirState.lock.Unlock()
+		theirState.Lock()
+		theirState.Unlock()
 
 		switch st := theirState.value.(type) {
 		case *RemoteEndPointValid:
@@ -925,8 +925,8 @@ func (ourEndPoint *LocalEndPoint) closeIfUnused(theirEndPoint *RemoteEndPoint) {
 func (ourEndPoint *LocalEndPoint) resetIfBroken(theirAddress EndPointAddress) error {
 	theirEndPoint, err := func() (*RemoteEndPoint, error) {
 		ourState := &ourEndPoint.localState
-		ourState.lock.Lock()
-		defer ourState.lock.Unlock()
+		ourState.Lock()
+		defer ourState.Unlock()
 
 		switch st := ourState.value.(type) {
 		case *LocalEndPointValid:
@@ -946,8 +946,8 @@ func (ourEndPoint *LocalEndPoint) resetIfBroken(theirAddress EndPointAddress) er
 	}
 
 	theirState := &theirEndPoint.remoteState
-	theirState.lock.Lock()
-	theirState.lock.Unlock()
+	theirState.Lock()
+	theirState.Unlock()
 
 	switch theirState.value.(type) {
 	case *RemoteEndPointInvalid, *RemoteEndPointFailed:
@@ -958,8 +958,8 @@ func (ourEndPoint *LocalEndPoint) resetIfBroken(theirAddress EndPointAddress) er
 
 // Resolve an endpoint currently in 'Init' state
 func (ourEndPoint *LocalEndPoint) resolveInit(theirEndPoint *RemoteEndPoint, newState RemoteState) error {
-	theirEndPoint.remoteState.lock.Lock()
-	defer theirEndPoint.remoteState.lock.Unlock()
+	theirEndPoint.remoteState.Lock()
+	defer theirEndPoint.remoteState.Unlock()
 
 	switch p := theirEndPoint.remoteState.value.(type) {
 	case *RemoteEndPointInit:
@@ -983,8 +983,8 @@ func (ourEndPoint *LocalEndPoint) resolveInit(theirEndPoint *RemoteEndPoint, new
 //
 // If the local endpoint is closed, do nothing
 func (ourEndPoint *LocalEndPoint) removeRemoteEndPoint(theirEndPoint *RemoteEndPoint) {
-	ourEndPoint.localState.lock.Lock()
-	defer ourEndPoint.localState.lock.Unlock()
+	ourEndPoint.localState.Lock()
+	defer ourEndPoint.localState.Unlock()
 
 	switch ourState := ourEndPoint.localState.value.(type) {
 	case *LocalEndPointValid:
@@ -1005,8 +1005,8 @@ func (ourEndPoint *LocalEndPoint) removeRemoteEndPoint(theirEndPoint *RemoteEndP
 // Does nothing if the transport is closed
 func (transport *TCPTransport) removeLocalEndPoint(ourEndPoint *LocalEndPoint) {
 	state := &transport.transportState
-	state.lock.Lock()
-	defer state.lock.Unlock()
+	state.Lock()
+	defer state.Unlock()
 
 	epid := ourEndPoint.localAddress.epid
 	endpoints := state.value.(*TransPortValid)._1._localEndPoints
@@ -1020,8 +1020,8 @@ func (transport *TCPTransport) removeLocalEndPoint(ourEndPoint *LocalEndPoint) {
 // May throw a TransportError NewEndPointErrorCode exception if the transport
 // is closed.
 func (tp *TCPTransport) createLocalEndPoint(epid EndPointId) (*LocalEndPoint, error) {
-	tp.transportState.lock.Lock()
-	defer tp.transportState.lock.Unlock()
+	tp.transportState.Lock()
+	defer tp.transportState.Unlock()
 
 	switch ts := tp.transportState.value.(type) {
 	case *TransPortValid:
@@ -1042,7 +1042,7 @@ func (tp *TCPTransport) createLocalEndPoint(epid EndPointId) (*LocalEndPoint, er
 			localAddress: EndPointAddress{tp.transportAddr, epid},
 			localState: struct {
 				value LocalEndPointState
-				lock  sync.Mutex
+				sync.Mutex
 			}{value: st},
 			localQueue: make(chan Event, 10),
 		}
@@ -1064,8 +1064,8 @@ func createConnectionId(hcid HeavyweightConnectionId, lcid LightweightConnection
 func (transport *TCPTransport) internalSocketBetween(ourAddress EndPointAddress, theirAddress EndPointAddress) (net.Conn, error) {
 	ourEndPoint, err := func() (*LocalEndPoint, error) {
 		s := &transport.transportState
-		s.lock.Lock()
-		defer s.lock.Unlock()
+		s.Lock()
+		defer s.Unlock()
 
 		switch st := s.value.(type) {
 		case *TransPortValid:
@@ -1085,8 +1085,8 @@ func (transport *TCPTransport) internalSocketBetween(ourAddress EndPointAddress,
 
 	theirEndPoint, err := func() (*RemoteEndPoint, error) {
 		s := &ourEndPoint.localState
-		s.lock.Lock()
-		defer s.lock.Unlock()
+		s.Lock()
+		defer s.Unlock()
 
 		switch st := s.value.(type) {
 		case *LocalEndPointValid:
@@ -1105,8 +1105,8 @@ func (transport *TCPTransport) internalSocketBetween(ourAddress EndPointAddress,
 	}
 
 	s := &theirEndPoint.remoteState
-	s.lock.Lock()
-	defer s.lock.Unlock()
+	s.Lock()
+	defer s.Unlock()
 
 	switch st := s.value.(type) {
 	case *RemoteEndPointInit:
