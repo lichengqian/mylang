@@ -1,6 +1,7 @@
 (ns clj-compiler
     (:require [clojure.edn :as edn]
             [clojure.string :as str]
+            [clojure.java.io :as io]
             [clojure.java.shell :refer [sh]])
     (:use [mylang]
           [language.common]
@@ -51,3 +52,12 @@
      (set-language :language.golang/golang)
      (spit target (_compile path))
      (sh "gofmt" "-w" target)))
+
+(defn go-make
+    "批量编译一个目录下的clj文件"
+    [path]
+    (doseq [f (.listFiles (io/file path))]
+        (let [fpath (.getPath f)]
+            (when (str/ends-with? fpath ".clj")
+                (println "compiling " (.getPath f))
+                (go-compile (.getPath f))))))
