@@ -143,17 +143,17 @@ func (ourEndPoint *LocalEndPoint) apiSend(theirEndPoint *RemoteEndPoint, connId 
 					connId.sendMsg(msg, conn)
 				}, nil
 			}
-			return nil, errors.New("Connection closed")
+			return nil, ErrConnectionClosed
 		case *RemoteEndPointClosing, RemoteEndPointClosed:
 			if connAlive.IsSet() {
 				ourEndPoint.relyViolation("apiSend")
 			}
-			return nil, errors.New("Connection closed")
+			return nil, ErrConnectionClosed
 		case *RemoteEndPointFailed:
 			if connAlive.IsSet() {
 				return nil, st._1
 			}
-			return nil, errors.New("Connection closed")
+			return nil, ErrConnectionClosed
 		}
 		return nil, errors.New("apiSend error")
 	}()
@@ -287,7 +287,7 @@ func (tp *TCPTransport) handleConnectionRequest(conn net.Conn) {
 			return nil, errors.New("unknown endpoint")
 
 		default: // TransportClosed
-			return nil, errors.New("Transport closed")
+			return nil, ErrTransportClosed
 		}
 	}()
 
@@ -933,7 +933,7 @@ func (ourEndPoint *LocalEndPoint) resetIfBroken(theirAddress EndPointAddress) er
 			vst := &st._1
 			return vst._localConnections[theirAddress], nil
 		default:
-			return nil, errors.New("EndPoint closed")
+			return nil, ErrEndPointClosed
 		}
 	}()
 
@@ -1048,7 +1048,7 @@ func (tp *TCPTransport) createLocalEndPoint(epid EndPointId) (*LocalEndPoint, er
 		}
 		return endpoints[epid], nil
 	case TransportClosed:
-		return nil, errors.New("transport closed")
+		return nil, ErrTransportClosed
 	default:
 		return nil, errors.New("new endpoint failed")
 	}
@@ -1076,7 +1076,7 @@ func (transport *TCPTransport) internalSocketBetween(ourAddress EndPointAddress,
 				return nil, errors.New("Local endpoint not found")
 			}
 		}
-		return nil, errors.New("Transport closed")
+		return nil, ErrTransportClosed
 	}()
 
 	if err != nil {

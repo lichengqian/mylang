@@ -12,6 +12,7 @@
 * fn
 * main
 * go
+* deferr
 
 ## test support
 
@@ -19,7 +20,7 @@
 
 ## Target
 
-* go
+* golang
 
 
 ## Change Log

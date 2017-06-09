@@ -108,6 +108,11 @@
 (encode! ConnectionRequestResponse)
 (decode! ConnectionRequestResponse)
 
+(deferr
+    TransportClosed "Transport closed"
+    EndPointClosed  "EndPoint closed"
+    ConnectionClosed "Connection closed")
+    
 ; (native :golang " 
 ; type test string
 ;     ")

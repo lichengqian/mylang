@@ -407,6 +407,13 @@
   (set-ns "main")
   (emit-function 'main nil [] body))
 
+(defmethod emit-special [::golang 'deferr]
+  [_ [_ & body]]
+  (go-import "errors")
+  (->> (partition 2 body)
+       (map (fn [[k v]] (str "var Err" (name k) " = errors.New(" (emit v) ")")))
+       (string/join "\n")))
+
 (defmethod emit-special [::golang 'deftest]
   [_ [_ n & body]]
   (go-import "testing")
