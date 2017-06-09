@@ -1,7 +1,8 @@
 (ns language.golang
   (:require [pallet.common.resource :as resource]
             [pallet.common.string :as common-string]
-            [clojure.string :as string])
+            [clojure.string :as string]
+            [clojure.java.io :as io])
   (:use
    [language.common]
    [mylang]
@@ -492,3 +493,9 @@
   (.macro_encode golang
     enum-name 
     (get-enum enum-name)))
+
+(defn default-go-ns [path]
+    (-> path
+        io/file
+        .getParentFile
+        .getName))

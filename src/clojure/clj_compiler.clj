@@ -25,6 +25,7 @@
 
 (defn- _compile [path]
     (binding [*compiler-context* {:import #{}}]
+        (set-ns (default-go-ns path))
         (let [forms (read-forms path)
             ;   _ (println "read ok" forms)
               out (emit-script (identity forms))]

@@ -1,5 +1,3 @@
-(ns tcp)
-
 ;;; Test that the server gets a ConnectionClosed message when the client closes
 ;;; the socket without sending an explicit control message to the server first)
 (deftest earlyDisconnect

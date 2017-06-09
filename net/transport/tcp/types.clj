@@ -1,5 +1,3 @@
-(ns tcp)
-
 (type EndPointId UInt32)
 (type LightweightConnectionId UInt32)
 (type HeavyweightConnectionId UInt32)
