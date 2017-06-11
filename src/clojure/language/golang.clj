@@ -120,6 +120,8 @@
   'import [path] (add-import path)
   'not [expr] (str "!(" (emit expr) ")")
   'chan [t n] (str "make(chan " (emit t) ", " (emit n) ")")
+  '<! [c] (str "<-" (emit c))
+  '>! [c v] (str (emit c) "<- " (emit v))
   '<- [v expr]
     (str (emit v)
         ", err := "
@@ -127,9 +129,6 @@
         "\n  if err != nil {\n "
         *error-code*
         " }"))
-
-(defmethod emit-special [::golang 'writechan] [_ [c v]]
-  (str (emit c) " " (emit v)))
 
 (defn- check-symbol [var-name]
   (when (re-matches #".*-.*" var-name)

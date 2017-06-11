@@ -82,7 +82,7 @@
   #{'ns 'import 'struct 'type 'enum 'fn 'fn- 'let-fn 'val 'val- 'main 
     'deferr           ; error support
     'deftest 'tlog ; test support
-    'go 'chan         ; concurrent support
+    'go 'chan '<! '>!         ; concurrent support
     '<-   ; io monad supoort
     'if 'match 'aget 'aset 'get 'return 'set! 'native 'let
     'local 'literally 'deref 'do 'str 'quoted 'apply

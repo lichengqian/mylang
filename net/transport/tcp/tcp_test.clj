@@ -12,8 +12,8 @@
         (<- tp (CreateTransport "127.0.0.1:9999"))
         (<- ep (tp.NewEndPoint 1000))
         (println "server" (ep.Address))
-        (serverAddr<- (ep.Address))
-        (let theirAddr <-clientAddr)
+        (>! serverAddr (ep.Address))
+        (let theirAddr (<! clientAddr))
 
         ;; TEST 1: they connect to us, then drop the connection
         (do
@@ -56,8 +56,8 @@
         (<- ourAddr (mockEarlyDisconnect "127.0.0.1:8888"))
         (println "client" ourAddr)
 
-        (clientAddr<- ourAddr)
-        (let theirAddr <-serverAddr)
+        (>! clientAddr ourAddr)
+        (let theirAddr (<! serverAddr))
         ;; Connect to the server
         (<- sock (socketToEndPoint_ ourAddr theirAddr))
         ;; Open a new connection
@@ -83,8 +83,8 @@
         (<- tp (CreateTransport "127.0.0.1:9999"))
         (<- ep (tp.NewEndPoint 1000))
         (println "server" (ep.Address))
-        (serverAddr<- (ep.Address))
-        (let theirAddr <-clientAddr)
+        (>! serverAddr (ep.Address))
+        (let theirAddr (<! clientAddr))
         
         ;; TEST 1: they connect to us, then send a CloseSocket. Since we don't
         ;; have any outgoing connections, this means we will agree to close the
@@ -133,8 +133,8 @@
         (<- ourAddr (mockEarlyCloseSocket "127.0.0.1:8888"))
         (println "client" ourAddr)
 
-        (clientAddr<- ourAddr)
-        (let theirAddr <-serverAddr)
+        (>! clientAddr ourAddr)
+        (let theirAddr (<! serverAddr))
         ;; Connect to the server
         (<- sock (socketToEndPoint_ ourAddr theirAddr))
         ;; Open a new connection
@@ -191,8 +191,8 @@
         (println "server")
         (<- endpoint (transport.NewEndPoint 1000))
         (let ourAddress (endpoint.Address))
-        (serverAddr<- ourAddress)
-        (let theirAddress <-clientAddr)
+        (>! serverAddr ourAddress)
+        (let theirAddress (<! clientAddr))
 
         ;; Wait for the client to set up the TCP connection to us
         (wait connectionEstablished)
@@ -217,8 +217,8 @@
         (println "client")
         (<- endpoint (transport.NewEndPoint 2000))
         (let ourAddress (endpoint.Address))
-        (clientAddr<- ourAddress)
-        (let theirAddress <-serverAddr)
+        (>! clientAddr ourAddress)
+        (let theirAddress (<! serverAddr))
 
         ;; Connect to the server
         (<- sock (socketToEndPoint_ ourAddress theirAddress))
@@ -272,8 +272,8 @@
         (println "server")
         (<- endpoint (transport.NewEndPoint 1000))
         (let ourAddress (endpoint.Address))
-        (serverAddr<- ourAddress)
-        (let theirAddress <-clientAddr)
+        (>! serverAddr ourAddress)
+        (let theirAddress (<! clientAddr))
 
         ;; Wait for the client to set up the TCP connection to us
         (wait connectionEstablished)
@@ -294,8 +294,8 @@
         (println "client")
         (<- endpoint (transport.NewEndPoint 2000))
         (let ourAddress (endpoint.Address))
-        (clientAddr<- ourAddress)
-        (let theirAddress <-serverAddr)
+        (>! clientAddr ourAddress)
+        (let theirAddress (<! serverAddr))
 
         ;; Connect to the server
         (<- sock (socketToEndPoint_ ourAddress theirAddress))
@@ -351,7 +351,7 @@
         ;; construct the proper address. If we used its actual address, the clients
         ;; would try to resolve "128.0.0.1" and then would fail due to invalid
         ;; address.)
-        (serverAddr<- (endpoint.Address)))
+        (>! serverAddr (endpoint.Address)))
 
     (go
         ;; We pick an address < 128.0.0.1 so that this is not rejected purely because of the "crossed" check
@@ -359,7 +359,7 @@
 
         ;; We should only get a single 'Accepted' reply
         (let gotAccepted (newNotifier)
-             addr <-serverAddr)
+             addr (<! serverAddr))
         (mockUnnecessaryConnect numThreads ourAddress addr gotAccepted)
         (wait gotAccepted)
         (notify clientDone))
@@ -392,7 +392,7 @@
     ;; server
     (go 
         (<- endpoint (transport.NewEndPoint 1000))
-        (serverAddr<- (endpoint.Address))
+        (>! serverAddr (endpoint.Address))
 
         (let event (endpoint.Receive))
         (println "want ConnectionOpened" event)
@@ -409,7 +409,7 @@
         (<- endpoint (transport.NewEndPoint 2000))
         (let
             ourAddr (endpoint.Address)
-            theirAddr <-serverAddr)
+            theirAddr (<! serverAddr))
         ;; Connect so that we have a TCP connection)
         (endpoint.Dial theirAddr)
 
@@ -434,7 +434,7 @@
     (go
         (<- transport (CreateTransport "127.0.0.1:9999"))
         (<- ep (transport.NewEndPoint 1000))
-        (serverAddr<- (ep.Address))
+        (>! serverAddr (ep.Address))
 
         (let event (ep.Receive))
         (println "want ConnectionOpened" event)
@@ -446,7 +446,7 @@
     (go
         (let 
             ourAddr (newEndPointAddress "127.0.0.1:8888" 100)
-            theirAddr <-serverAddr)
+            theirAddr (<! serverAddr))
         (<- sock (socketToEndPoint_ ourAddr theirAddr))
         (sendCreateNewConnection 1024 sock)
         (wait serverDone)
