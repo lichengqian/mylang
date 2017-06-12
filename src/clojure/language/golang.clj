@@ -663,3 +663,15 @@
           braceln
           (str "switch _s := " code-test))))
 
+;;; defrecord support
+(defmethod emit-special [::golang 'defrecord]
+  [type [_ n fields]]
+  (let [emit-field (fn [field]
+                      (str (emit field) " "
+                           (emit-type (typeof field))
+                           "\n"))]
+      (->> fields
+          (map emit-field)
+          string/join
+          brace
+          (str "type " n " struct"))))
