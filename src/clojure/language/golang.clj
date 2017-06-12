@@ -367,6 +367,13 @@
     (emit-doc doc?)
     (.emitEnum golang name enums)))
 
+;;; return function
+(def ^:dynamic *return* (fn [v] (str "return " (emit v))))
+
+(defmethod emit-special [::golang 'return]
+  [_ [_ v]]
+  (*return* v))
+
 (defn- typeof [v]
   (:tag (meta v)))
 
@@ -402,9 +409,16 @@
                 "return err\n"
                 "return nil, err\n"))
 
+            (emit-return [v]
+              (str "return " (emit v)
+                (if (nil? (typeof sig))
+                  "\n"
+                  ", nil")))
+
             (emit-body [body]
               (if @has-err
-                (with-bindings {#'*error-code* (error-code)}
+                (with-bindings {#'*error-code* (error-code)
+                                #'*return* emit-return}
                   (emit-do body))
                 (emit-do body)))]
 
