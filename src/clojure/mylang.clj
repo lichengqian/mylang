@@ -79,7 +79,7 @@
      `emit-special`."
     :internal true}
   special-forms
-  #{'ns 'import 'struct 'type 'enum 'let-fn 'val 'val- 'main 
+  #{'ns 'import 'struct 'type 'enum 'val 'val- 'main 
     'defn 'defn- 'fn
     'deferr           ; error support
     'deftest 'tlog ; test support

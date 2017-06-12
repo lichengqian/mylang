@@ -62,9 +62,6 @@ data class Golang(val emit: IFn, val emitType: IFn, val goImport: IFn) {
     fun emitStruct(name: Any, values: Iterable<Any>) =
         render { struct(name, values) }
 
-    fun emitMatch(name: Any, values: Iterable<Any>) =
-            render { match(emit, name, values) }
-
     fun Render.type(t1: Any, t2: Any) = +"type $t1 ${emitType.invoke(t2)} \n"
     fun Render.declInterface(t1: Any, init: Render.() ->Unit) = "type $t1 interface".brace(init)
 
@@ -153,34 +150,6 @@ data class Golang(val emit: IFn, val emitType: IFn, val goImport: IFn) {
         }
         newline()
     }
-
-    private fun Any.fnType(b: StringBuilder) :StringBuilder {
-        val types = when (this) {
-            is IPersistentList -> this.seq()
-            is IPersistentVector -> this.seq()
-            else -> throw RuntimeException("unsupport fn type")
-        } 
-
-        b.append("func(")
-        var first = true
-        var ps = types
-        while (ps.count() > 1) {
-            if (first) {
-                first = false
-            }
-            else {
-                b.append(", ")
-            }
-            b.append(emitType.invoke(ps.first()))
-            ps = ps.next()
-        }
-        b.append(") ").append(emitType.invoke(ps.first()))
-
-//    System.out.println("emitType " + this)
-        return b
-    }
-
-    fun emitFnType(args: Any) = args.fnType(StringBuilder()).toString()
 
     fun emitFnDecl(args: Any, rettype: Any) :String {
         val b = StringBuilder()

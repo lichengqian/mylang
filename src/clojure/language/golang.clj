@@ -385,10 +385,6 @@
   [_ [_ & body]]
   (emit-let body))
 
-(defmethod emit-special [::golang 'let-fn]
-  [_ [_ n args rettype & body]]
-  (str n " := " (.emitFnDecl golang args rettype) " {\n" (emit-do body) "}"))
-  
 (defmethod emit-special [::golang 'go]
   [_ [_ & body]]
   (if (= 1 (count body))
@@ -504,7 +500,6 @@
 (defmethod emit-type-constructor ::golang
   [c args]
   (case (str c)
-    "->" (.emitFnType golang args)
     "Either" (str "(" (emit-type (second args)) ", " (emit-type (first args)) ")")
     "Map" (str "map[" (emit-type (first args)) "]*" (emit-type (second args)))
     "Set" (str "map[" (emit-type (first args)) "]struct{}")
