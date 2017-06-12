@@ -2,7 +2,8 @@
   (:require [pallet.common.resource :as resource]
             [pallet.common.string :as common-string]
             [clojure.string :as string]
-            [clojure.java.io :as io])
+            [clojure.java.io :as io]
+            [clojure.walk :refer [prewalk]])
   (:use
    [language.common]
    [mylang]
@@ -366,13 +367,52 @@
     (emit-doc doc?)
     (.emitEnum golang name enums)))
 
+(defn- typeof [v]
+  (:tag (meta v)))
+
+(defn- emit-arg [arg]
+  (str (name arg) " " (emit-type (typeof arg))))
+
+;;; 根据body推断是否有error返回值
 (defmethod emit-function ::golang
   [name doc? sig body]
   (assert (symbol? name))
-  (str (emit-doc doc?)
-       "func " name "() {\n"
-       (emit-do body)
-       "}\n\n"))
+  (println (meta sig))
+  (with-local-vars [has-err false]
+    (letfn [(check-error-return? [body]
+                (prewalk #(if (= '<- %) 
+                              (do
+                                (var-set has-err true)
+                                %)
+                              %)
+                        body))
+            (emit-function-sig
+              [sig]
+              (let [ret-type (emit-type (typeof sig))
+                    args (->> sig
+                          (map emit-arg)
+                          (string/join ", ")
+                          paren)]
+                  (str args " " 
+                    (if @has-err
+                      (paren (str ret-type ", error"))
+                      ret-type))))
+            (error-code []
+              (if (nil? (typeof sig))
+                "return err\n"
+                "return nil, err\n"))
+
+            (emit-function-body [body]
+              (if @has-err
+                (with-bindings {#'*error-code* (error-code)}
+                  (emit-do body))
+                (emit-do body)))]
+
+      (check-error-return? body)
+      (str (emit-doc doc?)
+          "func " name (emit-function-sig sig) " {\n"
+          (emit-function-body body)
+          "}\n\n"))))
 
 (defn- emit-var [var]
     (if (vector? var)

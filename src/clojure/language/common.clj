@@ -207,9 +207,6 @@
 
        (special-form? head) (emit-special head expr1)
 
-       (string/ends-with? (str head) "<-")
-       (emit-special 'writechan expr1)
-
        (infix-operator? head) (emit-infix head expr1)
        (macro? head) (emit (macroexpand-1 expr))
        :else (emit-special 'invoke expr)))
@@ -262,7 +259,7 @@
     [(first expr) (next expr)]
     [nil expr]))
 
-(defmethod emit-special [::common-impl 'fn] [type [fn & expr]]
+(defmethod emit-special [::common-impl 'defn] [type [fn & expr]]
   (let [name (first expr)
         [doc [signature & body]] (check-doc (next expr))]
     (emit-function name doc signature body)))
@@ -341,3 +338,6 @@
 
 (defn brace [s]
     (str "{" s "}"))
+
+(defn braceln [s]
+    (str "{\n" s "\n}"))
