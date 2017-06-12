@@ -236,19 +236,13 @@
     (str "{\n" (emit form) "}")
     (str "{\n " (emit form) "}")))
 
-(defmethod emit-special [::golang 'if] [type [if test true-form & false-form]]
+(defmethod emit-special [::golang 'if] [type [if test true-form false-form]]
   (str "if "
        (emit test) " "
        (emit-body-for-if true-form)
-       (when (first false-form)
-         (str " else " (emit-body-for-if (first false-form))))
+       (str " else " (emit-body-for-if false-form))
        "\n"))
        
-
-(defmethod emit-special [::golang 'match]
-  [type [_ test & exprs]]
-  (.emitMatch golang test exprs))
-
 (defmethod emit-special [::golang 'dot-method] [type [method obj & args]]
   (let [method (symbol (substring (str method) 1))]
     (emit-method obj method args)))
@@ -264,12 +258,6 @@
 
 (defmethod emit-special [::golang 'aget] [type [aget var idx]]
   (str "${" (emit var) "[" (emit idx) "]}"))
-
-(defmethod emit-special [::golang 'get] [type [get var-name idx]]
-  (str "$(hash_echo "
-       (munge-symbol (emit var-name)) " "
-       (munge-symbol (emit idx))
-       " -n )"))
 
 (defmethod emit-special [::golang 'aset] [type [aget var idx val]]
   (str (emit var) "[" (emit idx) "]=" (emit val)))
@@ -381,54 +369,6 @@
 (defn- emit-arg [arg]
   (str (name arg) " " (emit-type (typeof arg))))
 
-;;; 根据body推断是否有error返回值
-(defmethod emit-function ::golang
-  [name doc? sig body]
-  (assert (symbol? name))
-  (println (meta sig))
-  (with-local-vars [has-err false]
-    (letfn [(check-error-return? [body]
-                (prewalk #(if (= '<- %) 
-                              (do
-                                (var-set has-err true)
-                                %)
-                              %)
-                        body))
-            (emit-function-sig
-              [sig]
-              (let [ret-type (emit-type (typeof sig))
-                    args (->> sig
-                          (map emit-arg)
-                          (string/join ", ")
-                          paren)]
-                  (str args " " 
-                    (if @has-err
-                      (paren (str ret-type ", error"))
-                      ret-type))))
-            (error-code []
-              (if (nil? (typeof sig))
-                "return err\n"
-                "return nil, err\n"))
-
-            (emit-return [v]
-              (str "return " (emit v)
-                (if (nil? (typeof sig))
-                  "\n"
-                  ", nil")))
-
-            (emit-body [body]
-              (if @has-err
-                (with-bindings {#'*error-code* (error-code)
-                                #'*return* emit-return}
-                  (emit-do body))
-                (emit-do body)))]
-
-      (check-error-return? body)
-      (str (emit-doc doc?)
-          "func " name (emit-function-sig sig) " {\n"
-          (emit-body body)
-          "}\n\n"))))
-
 (defn- emit-var [var]
     (if (vector? var)
         (string/join ","
@@ -493,7 +433,11 @@
   ; (println (str name) args)
   (cond
     (string/ends-with? (str name) ".")    ; enum constructor
-    (str (substring (str name) 0 (- (count (str name)) 1)) (brace (emit (first args))))
+    (->> args
+        (map emit)
+        (string/join ", ")
+        brace
+        (str (substring (str name) 0 (- (count (str name)) 1))))
 
     (string/starts-with? (str name) "map->")  ; struct constructor 
     (do
@@ -509,6 +453,26 @@
       "sleep" (do
                   (add-import "time")
                   (str "time.Sleep(" (first args) " * time.Millisecond)"))
+
+      "nil?" (str (emit (first args))
+                  " == nil")
+
+      "get"   (let [mv (first args)
+                    k  (second args)]
+                  (str (emit mv) (bracket (emit k))))
+
+      "assoc" (let [mv (first args)
+                    kvs (partition 2 (rest args))
+                    emit-kv (fn [[k v]]
+                                (str  (emit mv) 
+                                      (bracket (emit k)) 
+                                      " = "
+                                      (emit v)
+                                      "\n"))]
+                  (->> kvs
+                    (map emit-kv)
+                    string/join))
+
       (if (seq args)
         (->> args
           (map emit)
@@ -586,6 +550,64 @@
         paren
         (str "import ")))
 
+;;; defn / fn support 
+(defn- emit-function-decl
+  [sig body]
+  (println (meta sig))
+  (with-local-vars [has-err false]
+    (letfn [(check-error-return? [body]
+                (prewalk #(if (= '<- %) 
+                              (do
+                                (var-set has-err true)
+                                %)
+                              %)
+                        body))
+            (emit-function-sig
+              [sig]
+              (let [ret-type (emit-type (typeof sig))
+                    args (->> sig
+                          (map emit-arg)
+                          (string/join ", ")
+                          paren)]
+                  (str args " " 
+                    (if @has-err
+                      (paren (str ret-type ", error"))
+                      ret-type))))
+            (error-code []
+              (if (nil? (typeof sig))
+                "return err\n"
+                "return nil, err\n"))
+
+            (emit-return [v]
+              (str "return " (emit v)
+                (if (nil? (typeof sig))
+                  "\n"
+                  ", nil")))
+
+            (emit-body [body]
+              (if @has-err
+                (with-bindings {#'*error-code* (error-code)
+                                #'*return* emit-return}
+                  (emit-do body))
+                (emit-do body)))]
+
+      (check-error-return? body)
+      (str (emit-function-sig sig) " {\n"
+          (emit-body body)
+          "}\n\n"))))
+  
+(defmethod emit-function ::golang
+  [name doc? sig body]
+  (assert (symbol? name))
+  (str (emit-doc doc?)
+      "func " name
+      (emit-function-decl sig body)))
+
+(defmethod emit-special [::golang 'fn] 
+  [_ [ _ sig & body]]
+  (str "func "
+      (emit-function-decl sig body)))
+
 ;;; loop / recur support
 (def ^:dynamic *recur* nil)
 
@@ -606,3 +628,38 @@
 (defmethod emit-special [::golang 'recur]
   [_ [_  & exprs]]
   (str (*recur* exprs) "\ncontinue\n"))
+
+;;; enum match support 
+(defn- emit-branch
+  ([k expr]
+   (cond
+      (symbol? k)
+      (str "case " (emit k) ":\n"
+          (emit expr))
+
+      (vector? k)
+      (let [vars (rest k)
+            idx (range 1 (+ 1 (count vars)))
+            assign-var (str (string/join ", " (map emit vars))
+                            " := "
+                            (string/join ", "
+                                (map #(str "_s._" %) idx))
+                            "\n")]
+        (str "case *" (str (first k) ":\n")
+            assign-var
+            (emit expr)))))
+            
+  ([expr]
+   (str "default:\n"
+     (emit expr))))
+
+(defmethod emit-special [::golang 'match]
+  [type [_ test & exprs]]
+  (let [code-test (str (emit test) ".(type)")
+        branches (partition 2 exprs)]
+      (->> branches
+          (map #(apply emit-branch %))
+          (string/join "\n")
+          braceln
+          (str "switch _s := " code-test))))
+

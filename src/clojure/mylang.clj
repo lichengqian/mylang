@@ -79,14 +79,15 @@
      `emit-special`."
     :internal true}
   special-forms
-  #{'ns 'import 'struct 'type 'enum 'defn 'defn- 'let-fn 'val 'val- 'main 
+  #{'ns 'import 'struct 'type 'enum 'let-fn 'val 'val- 'main 
+    'defn 'defn- 'fn
     'deferr           ; error support
     'deftest 'tlog ; test support
     'go 'chan '<! '>!         ; concurrent support
     '<- 'return 'throw  ; io monad supoort
     'native
     'loop 'recur        ; loop support
-    'if 'match 'aget 'aset 'get 'set! 'let
+    'if 'match 'aget 'aset 'set! 'let
     'local 'literally 'deref 'do 'str 'quoted 'apply
     'file-exists? 'directory? 'symlink? 'readable? 'writeable? 'empty?
     'not 'println 'print 'group 'pipe 'chain-or
