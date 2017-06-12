@@ -83,8 +83,10 @@
     'deferr           ; error support
     'deftest 'tlog ; test support
     'go 'chan '<! '>!         ; concurrent support
-    '<-   ; io monad supoort
-    'if 'match 'aget 'aset 'get 'return 'set! 'native 'let
+    '<- 'return 'throw  ; io monad supoort
+    'native
+    'loop 'recur        ; loop support
+    'if 'match 'aget 'aset 'get 'set! 'let
     'local 'literally 'deref 'do 'str 'quoted 'apply
     'file-exists? 'directory? 'symlink? 'readable? 'writeable? 'empty?
     'not 'println 'print 'group 'pipe 'chain-or

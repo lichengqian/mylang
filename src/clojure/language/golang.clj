@@ -117,6 +117,7 @@
         " " (emit-quoted-if-not-subexpr quoting (second args)) close)))
 
 (defemit-special ::golang
+  'native [code] (str code)
   'ns [path] (set-ns (emit path))
   'import [path] (add-import path)
   'not [expr] (str "!(" (emit expr) ")")
@@ -435,12 +436,15 @@
               (str v)))
         (str var)))
 
-(defmethod emit-special [::golang 'let]
-  [_ [_ & body]]
+(defn- emit-let [body]
   (string/join "\n"
     (for [[var expr] (partition 2 body)]
         (str (emit-var var) " := " (emit expr)))))
   
+(defmethod emit-special [::golang 'let]
+  [_ [_ & body]]
+  (emit-let body))
+
 (defmethod emit-special [::golang 'let-fn]
   [_ [_ n args rettype & body]]
   (str n " := " (.emitFnDecl golang args rettype) " {\n" (emit-do body) "}"))
@@ -486,13 +490,33 @@
 ;; pipeline).
 (defmethod emit-function-call ::golang
   [name & args]
-  (case (str name)
-    "sleep" (do
-                (add-import "time")
-                (str "time.Sleep(" (first args) " * time.Millisecond)"))
-    (if (seq args)
-      (str (emit name) "(" (reduce str (interpose "," args)) ")")
-      (str (emit name) "()"))))
+  ; (println (str name) args)
+  (cond
+    (string/ends-with? (str name) ".")    ; enum constructor
+    (str (substring (str name) 0 (- (count (str name)) 1)) (brace (emit (first args))))
+
+    (string/starts-with? (str name) "map->")  ; struct constructor 
+    (do
+      (println (into [] (first args)))
+      (->> (into [] (first args))
+          (map (fn [[k v]] (str (emit k) ": " (emit v) ",\n")))
+          string/join
+          braceln
+          (str (substring (str name) 5))))
+        
+    :else
+    (case (str name)
+      "sleep" (do
+                  (add-import "time")
+                  (str "time.Sleep(" (first args) " * time.Millisecond)"))
+      (if (seq args)
+        (->> args
+          (map emit)
+          (string/join ", ")
+          paren
+          (str (emit name)))
+        ; (str (emit name) "(" (reduce str (interpose "," args)) ")")
+        (str (emit name) "()")))))
 
 (defmethod emit-type-builtin ::golang
   [t]
@@ -561,3 +585,24 @@
         (string/join "\n")
         paren
         (str "import ")))
+
+;;; loop / recur support
+(def ^:dynamic *recur* nil)
+
+(defmethod emit-special [::golang 'loop]
+  [_ [_  bindings & exprs]]
+  (let [vars (map first (partition 2 bindings))
+        fn-recur (fn [args]
+                    (->> args
+                        (map #(str (str %1) " = " (emit %2)) vars)
+                        (string/join "\n")))]
+      (str (emit-let bindings) "\n"
+          (with-bindings {#'*recur* fn-recur}
+            (->> exprs
+              emit-do
+              braceln
+              (str "for"))))))
+
+(defmethod emit-special [::golang 'recur]
+  [_ [_  & exprs]]
+  (str (*recur* exprs) "\ncontinue\n"))
