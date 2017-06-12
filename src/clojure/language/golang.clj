@@ -117,7 +117,6 @@
         " " (emit-quoted-if-not-subexpr quoting (second args)) close)))
 
 (defemit-special ::golang
-  'native [code] (str code)
   'ns [path] (set-ns (emit path))
   'import [path] (add-import path)
   'not [expr] (str "!(" (emit expr) ")")
@@ -132,6 +131,9 @@
         *error-code*
         " }"))
 
+(defmethod emit-special [::golang 'native] [_ [_ & lines]]
+  (string/join "\n" lines))
+  
 (defn- check-symbol [var-name]
   (when (re-matches #".*-.*" var-name)
     (throw
