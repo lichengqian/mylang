@@ -151,36 +151,6 @@ data class Golang(val emit: IFn, val emitType: IFn, val goImport: IFn) {
         newline()
     }
 
-    fun emitFnDecl(args: Any, rettype: Any) :String {
-        val b = StringBuilder()
-        val types = when (args) {
-            is IPersistentList -> args.seq()
-            is IPersistentVector -> args.seq()
-            else -> throw RuntimeException("unsupport fn type")
-        } 
-
-        b.append("func(")
-        var first = true
-        var ps = types
-        while (ps != null && ps.count() > 0) {
-            if (first) {
-                first = false
-            }
-            else {
-                b.append(", ")
-            }
-
-            b.append(emit.invoke(ps.first()))
-            ps = ps.next()
-
-            b.append(" " + emitType.invoke(ps.first()))
-            ps = ps.next()
-        }
-        b.append(") ").append(emitType.invoke(rettype))
-
-        return b.toString()
-    }
-
     fun macro_encode(name: Any, fields: Iterable<Any>) = 
         render {
             "func encode$name(n $name) uint8".brace {
