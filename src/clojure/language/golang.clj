@@ -402,7 +402,7 @@
                 "return err\n"
                 "return nil, err\n"))
 
-            (emit-function-body [body]
+            (emit-body [body]
               (if @has-err
                 (with-bindings {#'*error-code* (error-code)}
                   (emit-do body))
@@ -411,7 +411,7 @@
       (check-error-return? body)
       (str (emit-doc doc?)
           "func " name (emit-function-sig sig) " {\n"
-          (emit-function-body body)
+          (emit-body body)
           "}\n\n"))))
 
 (defn- emit-var [var]
@@ -483,19 +483,21 @@
 (defmethod emit-type-builtin ::golang
   [t]
   ; (println t)
-  (case (str t)
-    "Void" ""
-    "UInt32" "uint32"
-    "UInt64" "uint64"
-    "String" "string"
-    "ByteString" "[]byte"
-    "Error" "error"
-    "Chan" "chan"
-    "Lock"  (do (add-import "sync") "sync.Mutex")
+  (if (nil? t)
+    ""
+    (case (str t)
+      "Void" ""
+      "UInt32" "uint32"
+      "UInt64" "uint64"
+      "String" "string"
+      "ByteString" "[]byte"
+      "Error" "error"
+      "Chan" "chan"
+      "Lock"  (do (add-import "sync") "sync.Mutex")
 
-    "Listener" (do (add-import "net") "net.Listener")
-    "Conn" (do (add-import "net") "net.Conn")
-    (emit t)))
+      "Listener" (do (add-import "net") "net.Listener")
+      "Conn" (do (add-import "net") "net.Conn")
+      (emit t))))
 
 (defmethod emit-type-constructor ::golang
   [c args]
