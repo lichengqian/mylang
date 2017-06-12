@@ -411,7 +411,12 @@
   [_ [_ n & body]]
   (add-import "testing")
   (with-bindings {#'*error-code* "t.Error(err)\n return\n"}
-    (.emitTest golang n body)))
+    (->> body
+        emit-do
+        braceln
+        (str "func Test"
+              (string/capitalize (str n))
+              "(t *testing.T)"))))
 
 (defmethod emit-special [::golang 'tlog]
   [_ [_ & args]]
