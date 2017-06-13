@@ -1,9 +1,9 @@
 
 (type SwitchID UInt64)
 
-(defrecord LocalNode
-    [^*EndPoint localEndPoint 
-     ^LocalNodeState localState])
+(struct LocalNode
+    localEndPoint *EndPoint
+    localState  (MVar LocalNodeState))
 
 (enum LocalNodeState
     (LocalNodeValid ValidLocalNodeState)
@@ -42,7 +42,7 @@
                                  localConnections (native "make(map[SwitchID]*Connection)")}))
         node (map->LocalNode
                 {localEndPoint endpoint
-                 localState &st}))
+                 localState (^LocalNodeState newMVar &st)}))
     (return &node))
 
 ;;;------------------------------------------------------------------------------
@@ -104,7 +104,9 @@
 
                     (match pConn.theirTarget
                         Uninit
-                        (println "uinit")
+                        (do
+                            (let switchid (decodeSwitchID payload))
+                            (println "uinit"))
 
                         [ToSwitch sid]
                         (println sid payload))))

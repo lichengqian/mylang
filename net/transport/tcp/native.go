@@ -100,6 +100,19 @@ func ReadUint32(r io.Reader) (uint32, error) {
 	return uint32(binary.BigEndian.Uint32(buf[:])), nil
 }
 
+func decodeSwitchID(b []byte) SwitchID {
+	return SwitchID(binary.BigEndian.Uint64(b))
+}
+
+func ReadUint64(r io.Reader) (uint64, error) {
+	var buf [8]byte
+	_, err := io.ReadFull(r, buf[:])
+	if err != nil {
+		return 0, err
+	}
+	return binary.BigEndian.Uint64(buf[:]), nil
+}
+
 func ReadWithLen(r io.Reader, limit int) ([]byte, error) {
 	len, err := ReadUint32(r)
 	if err != nil {

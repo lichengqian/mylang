@@ -476,6 +476,20 @@
                     (map emit-kv)
                     string/join))
 
+      "newMVar" (do
+                    (add-import "sync")
+                    (str
+                      (->> 
+                          (str "value " (emit-type (typeof name))
+                              "\n sync.Mutex")
+                          braceln
+                          (str "struct"))
+                      (->> 
+                          (str "value: " 
+                              (emit (first args))
+                              ",")
+                          braceln)))
+                          
       (if (seq args)
         (->> args
           (map emit)
@@ -511,11 +525,15 @@
     "Map" (str "map[" (emit-type (first args)) "]*" (emit-type (second args)))
     "Set" (str "map[" (emit-type (first args)) "]struct{}")
     "IO" (str "(" (emit-type (first args)) ", error)")
-    "MVar" (string/join "\n"
+    "MVar" 
+    (do
+        (add-import "sync")
+        (string/join "\n"
             ["struct {"
              (str "  value " (emit-type (first args)))
              "  sync.Mutex"
-             "}"])
+             "}"]))
+
     (->> args
         (map emit-type)
         (string/join " ")
