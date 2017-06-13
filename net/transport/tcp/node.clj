@@ -55,7 +55,7 @@
 
 (enum IncomingTarget
     Uninit
-    (ToSwitch SwitchID))
+    (ToSwitch *LocalSwitch))
 
 (defrecord ConnectionState
     [^"map[ConnectionId]*IncomingConnection" incoming
@@ -76,12 +76,26 @@
         (fn [^ConnectionId cid ^String msg]
             (delete st.incoming, cid))
 
-        deleteConn 
+        onConnectionOpened
+        (fn [^ConnectionId cid, ^EndPointAddress ep]
+            (assoc st.incoming cid (&IncomingConnection. ep (Uninit.)))
+            (native
+                "if data, ok := st.incomingFrom[ep]; ok {"
+                    "data[cid] = struct{}{}"
+                "} else {"
+                    "data = make(map[ConnectionId]struct{})"
+                    "st.incomingFrom[ep] = data"
+                    "data[cid] = struct{}{}"
+                "}"))
+
+        onConnectionClosed 
         (fn [^ConnectionId cid]
-            (delete st.incoming cid)
-            (native 
-                "// TODO"
-                "// hello"))
+            (let pConn (get st.incoming cid))
+            (if (nil? pConn)
+                (invalidRequest cid "closed unknown connection")
+                (do
+                    (delete st.incoming cid)
+                    (delete (get st.incomingFrom pConn.theirAddress) cid))))
         
         onReceived
         (fn [^ConnectionId cid, ^ByteString payload]
@@ -96,7 +110,6 @@
                             switchid (decodeSwitchID payload)
                             nst &localNode.localState
                             pSwitch (^*LocalSwitch withMVar nst 
-                                        (println "uinit" switchid)
                                         (match nst.value
                                             [LocalNodeValid vst]
                                             (return (get vst.localSwitches switchid)))
@@ -106,37 +119,26 @@
                         
                         (if (nil? pSwitch)
                             (delete st.incoming cid)
-                            (assoc st.incoming cid (&IncomingConnection. pConn.theirAddress (&ToSwitch. switchid)))))
+                            (assoc st.incoming cid (&IncomingConnection. pConn.theirAddress (&ToSwitch. pSwitch)))))
 
-                    [ToSwitch sid]
-                    (println sid payload)))))
+                    [ToSwitch pSwitch]
+                    (do
+                        (println pSwitch.switchID payload)
+                        (>! pSwitch.switchQueue 
+                            (Message. pConn.theirAddress payload)))))))
 
     (println "handling node message...") 
     (loop []
         (let event (localNode.localEndPoint.Receive))
         (match event
             [ConnectionOpened cid ep]
-            (do
-                (assoc st.incoming cid (&IncomingConnection. ep (Uninit.)))
-                (native
-                    "if data, ok := st.incomingFrom[ep]; ok {"
-                        "data[cid] = struct{}{}"
-                    "} else {"
-                        "data = make(map[ConnectionId]struct{})"
-                        "st.incomingFrom[ep] = data"
-                        "data[cid] = struct{}{}"
-                    "}"))
-                ; (recur))
+            (onConnectionOpened cid ep)
 
             [Received cid payload]  
             (onReceived cid payload)
 
             [ConnectionClosed cid]
-            (do
-                (let pConn (get st.incoming cid))
-                (if (nil? pConn)
-                    (invalidRequest cid "closed unknown connection")
-                    (deleteConn cid)))
+            (onConnectionClosed cid)
 
             [ErrorEvent err msg]
             (println err msg)
