@@ -105,8 +105,20 @@
                     (match pConn.theirTarget
                         Uninit
                         (do
-                            (let switchid (decodeSwitchID payload))
-                            (println "uinit"))
+                            (let switchid (decodeSwitchID payload)
+                                 nst &localNode.localState
+                                 pSwitch (^*LocalSwitch withMVar nst 
+                                            (println "uinit" switchid)
+                                            (match nst.value
+                                                [LocalNodeValid vst]
+                                                (return (get vst.localSwitches switchid)))
+
+                                                ; LocalNodeClosed
+                                            (return nil)))
+                            
+                            (if (nil? pSwitch)
+                                (delete st.incoming cid)
+                                (assoc st.incoming cid (&IncomingConnection. pConn.theirAddress (&ToSwitch. switchid)))))
 
                         [ToSwitch sid]
                         (println sid payload))))

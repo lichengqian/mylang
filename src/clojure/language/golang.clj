@@ -489,7 +489,22 @@
                               (emit (first args))
                               ",")
                           braceln)))
-                          
+
+      "withMVar" (do
+                    (str
+                      (->>  ; func () RET 
+                          (typeof name)
+                          emit-type
+                          (str "func () "))
+                      (->   ; body
+                          (first args)
+                          emit
+                          (#(str % ".Lock()\n"
+                                 "defer " % ".Unlock()\n"
+                                 (emit-do (rest args))))
+                          braceln)
+                      "()\n"))
+
       (if (seq args)
         (->> args
           (map emit)
