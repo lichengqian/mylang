@@ -64,7 +64,7 @@
     (ConnectionClosed ConnectionId)
     (ConnectionOpened ConnectionId EndPointAddress)
     EndPointClosed
-    (ErrorEvent Error string))
+    (ErrorEvent EventErrorCode Error))
 
 ; (enum NewEndPointErrorCode
 ;     "Errors during the creation of an endpoint"

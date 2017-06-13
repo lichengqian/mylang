@@ -125,7 +125,11 @@
                     (do
                         (println pSwitch.switchID payload)
                         (>! pSwitch.switchQueue 
-                            (Message. pConn.theirAddress payload)))))))
+                            (Message. pConn.theirAddress payload))))))
+
+        onErrorEvent
+        (fn [^EventErrorCode errcode ^Error err]
+            (println errcode err)))
 
     (println "handling node message...") 
     (loop []
@@ -140,8 +144,8 @@
             [ConnectionClosed cid]
             (onConnectionClosed cid)
 
-            [ErrorEvent err msg]
-            (println err msg)
+            [ErrorEvent errcode err]
+            (onErrorEvent errcode err)
                 
             EndPointClosed
             return)))

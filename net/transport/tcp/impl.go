@@ -208,7 +208,6 @@ func (transport *TCPTransport) apiCloseEndPoint(evs []Event, ourEndPoint *LocalE
 			// one.
 			vst := &st._1
 			vst.sendOn(sendCloseEndPoint)
-			// sendCloseEndPoint(vst.remoteConn)
 			tryShutdownSocketBoth(vst.remoteConn)
 			// remoteSocketClosed(vst)
 
@@ -357,8 +356,8 @@ func handleIncomingMessages(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEnd
 			ourEndPoint.relyViolation("handleIncomingMessages:prematureExi")
 		case *RemoteEndPointValid:
 			// vst := &st._1
-			code := EventConnectionLost{theirAddress}
-			ourEndPoint.localQueue <- &ErrorEvent{err, code.String()}
+			code := &EventConnectionLost{theirAddress}
+			ourEndPoint.localQueue <- &ErrorEvent{code, err}
 			theirEndPoint.remoteState.value = &RemoteEndPointFailed{err}
 		case *RemoteEndPointClosing:
 			notify(st._1)
@@ -368,8 +367,8 @@ func handleIncomingMessages(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEnd
 			defer ourEndPoint.localState.Unlock()
 
 			if _, ok := ourEndPoint.localState.value.(*LocalEndPointValid); ok {
-				code := EventConnectionLost{theirAddress}
-				ourEndPoint.localQueue <- &ErrorEvent{err, code.String()}
+				code := &EventConnectionLost{theirAddress}
+				ourEndPoint.localQueue <- &ErrorEvent{code, err}
 			}
 		}
 	}
@@ -549,9 +548,9 @@ func handleIncomingMessages(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEnd
 					return nil
 				}
 				if vst._remoteOutgoing > 0 {
-					code := EventConnectionLost{theirAddress}
+					code := &EventConnectionLost{theirAddress}
 					msg := "socket closed prematurely by peer"
-					enqueue(&ErrorEvent{errors.New(msg), code.String()})
+					enqueue(&ErrorEvent{code, errors.New(msg)})
 				}
 				ourEndPoint.removeRemoteEndPoint(theirEndPoint)
 				theirState.value = RemoteEndPointClosed{}
@@ -583,7 +582,7 @@ func handleIncomingMessages(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEnd
 		// report the endpoint as gone if we have any outgoing connections
 		if vst._remoteOutgoing > 0 {
 			code := &EventConnectionLost{theirAddress}
-			enqueue(&ErrorEvent{errors.New(code.String()), "The remote endpoint was closed."})
+			enqueue(&ErrorEvent{code, errors.New("The remote endpoint was closed.")})
 		}
 	}
 
