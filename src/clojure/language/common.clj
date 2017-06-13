@@ -6,6 +6,18 @@
    [mylang
     :refer :all]))
 
+;;; utils 
+(defn paren [s]
+    (str "(" s ")"))
+
+(defn bracket [s]
+    (str "[" s "]"))
+
+(defn brace [s]
+    (str "{" s "}"))
+
+(defn braceln [s]
+    (str "{\n" s "\n}"))
 
 ;; Main dispatch functions.
 ;;
@@ -223,6 +235,13 @@
   [[c & args]]
   (emit-type-constructor c args))
 
+(defmethod emit-type [::common-impl clojure.lang.IPersistentVector]
+  [types]
+  (->> types
+      (map emit-type)
+      (string/join ", ")
+      paren))
+
 (defmethod emit-type [::common-impl java.lang.String]
   [t]
   (str t))
@@ -329,15 +348,3 @@
        "} >&2 " \newline
        (checked-success message) \newline))))
 
-;;; utils 
-(defn paren [s]
-    (str "(" s ")"))
-
-(defn bracket [s]
-    (str "[" s "]"))
-
-(defn brace [s]
-    (str "{" s "}"))
-
-(defn braceln [s]
-    (str "{\n" s "\n}"))

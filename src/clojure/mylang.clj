@@ -87,7 +87,7 @@
     '<- 'return 'throw  ; io monad supoort
     'native
     'loop 'recur        ; loop support
-    'if 'match 'aget 'aset 'set! 'let
+    'if 'when 'match 'aget 'aset 'set! 'let
     'local 'literally 'deref 'do 'str 'quoted 'apply
     'file-exists? 'directory? 'symlink? 'readable? 'writeable? 'empty?
     'not 'println 'print 'group 'pipe 'chain-or
@@ -101,7 +101,7 @@
 (def 
   builtin-macros
   "Operators that should not be resolved."
-  #{'if-not 'when 'when-not})
+  #{'if-not 'when-not})
 
 (def ^:internal unresolved
   "Set of symbols that should not be resolved."

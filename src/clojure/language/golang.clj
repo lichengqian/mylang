@@ -122,14 +122,25 @@
   'not [expr] (str "!(" (emit expr) ")")
   'chan [t n] (str "make(chan " (emit t) ", " (emit n) ")")
   '<! [c] (str "<-" (emit c))
-  '>! [c v] (str (emit c) "<- " (emit v))
-  '<- [v expr]
-    (str (emit v)
+  '>! [c v] (str (emit c) "<- " (emit v)))
+
+(defn- emit-monad-binding
+  ([v expr]
+   (str (emit v)
         ", err := "
         (emit expr)
         "\n  if err != nil {\n "
         *error-code*
         " }"))
+  ([expr]
+   (str "err := "
+        (emit expr)
+        "\n  if err != nil {\n "
+        *error-code*
+        " }")))
+
+(defmethod emit-special [::golang '<-] [_ [_ & args]]
+  (apply emit-monad-binding args))
 
 (defmethod emit-special [::golang 'native] [_ [_ & lines]]
   (string/join "\n" lines))
@@ -243,6 +254,12 @@
        (emit test) " "
        (emit-body-for-if true-form)
        (str " else " (emit-body-for-if false-form))
+       "\n"))
+       
+(defmethod emit-special [::golang 'when] [type [if test & forms]]
+  (str "if "
+       (emit test) " "
+       (braceln (emit-do forms))
        "\n"))
        
 (defmethod emit-special [::golang 'dot-method] [type [method obj & args]]
@@ -460,6 +477,9 @@
       "nil?" (str (emit (first args))
                   " == nil")
 
+      "some?" (str (emit (first args))
+                  " /= nil")
+
       "get"   (let [mv (first args)
                     k  (second args)]
                   (str (emit mv) (bracket (emit k))))
@@ -521,6 +541,7 @@
     ""
     (case (str t)
       "Void" ""
+      "Bool" "bool"
       "UInt32" "uint32"
       "UInt64" "uint64"
       "String" "string"
@@ -591,7 +612,7 @@
   (println (meta sig))
   (with-local-vars [has-err false]
     (letfn [(check-error-return? [body]
-                (prewalk #(if (= '<- %) 
+                (prewalk #(if (or (= '<- %) (= 'throw %)) 
                               (do
                                 (var-set has-err true)
                                 %)
@@ -599,15 +620,14 @@
                         body))
             (emit-function-sig
               [sig]
-              (let [ret-type (emit-type (typeof sig))
+              (let [ret-type (if @has-err [(typeof sig), 'Error] [(typeof sig)])
                     args (->> sig
                           (map emit-arg)
                           (string/join ", ")
                           paren)]
                   (str args " " 
-                    (if @has-err
-                      (paren (str ret-type ", error"))
-                      ret-type))))
+                      (emit-type (filterv some? ret-type)))))
+
             (error-code []
               (if (nil? (typeof sig))
                 "return err\n"
@@ -637,6 +657,10 @@
   (str (emit-doc doc?)
       "func " name
       (emit-function-decl sig body)))
+
+(defmethod emit-special [::golang 'throw] 
+  [_ [ _ err]]
+  (str "return " (emit err)))
 
 (defmethod emit-special [::golang 'fn] 
   [_ [ _ sig & body]]

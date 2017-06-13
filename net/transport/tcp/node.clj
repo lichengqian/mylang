@@ -128,8 +128,20 @@
                             (Message. pConn.theirAddress payload))))))
 
         onErrorEvent
-        (fn [^EventErrorCode errcode ^Error err]
-            (println errcode err)))
+        (fn ^Bool [^EventErrorCode errcode ^Error err]
+            (println errcode err)
+            (match errcode
+                [EventConnectionLost addr]
+                (do
+                    (native
+                        "for cid, _ := range st.incomingFrom[addr] {"
+                        "   delete(st.incoming, cid)"
+                        "}")
+                    (delete st.incomingFrom addr))
+
+                EventEndPointFailed (return true)
+                EventTransportFailed (return true))
+            (return false)))
 
     (println "handling node message...") 
     (loop []
@@ -145,8 +157,11 @@
             (onConnectionClosed cid)
 
             [ErrorEvent errcode err]
-            (onErrorEvent errcode err)
-                
-            EndPointClosed
+            (do
+                (let exit (onErrorEvent errcode err))
+                (when exit
+                    return))
+            
+            EndPointClosed 
             return)))
 
