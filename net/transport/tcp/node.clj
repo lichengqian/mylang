@@ -69,18 +69,50 @@
         "}"))
 
 (defn handleNodeMessages [^*LocalNode localNode]
-    (let st (initConnectionState)
-         invalidRequest (fn [^ConnectionId cid ^String msg]
-                            (delete st.incoming, cid))
+    (let 
+        st (initConnectionState)
+         
+        invalidRequest 
+        (fn [^ConnectionId cid ^String msg]
+            (delete st.incoming, cid))
 
-         deleteConn (fn [^ConnectionId cid]
-                       (delete st.incoming cid)
-                       (native 
-                           "// TODO"
-                           "// hello")))
+        deleteConn 
+        (fn [^ConnectionId cid]
+            (delete st.incoming cid)
+            (native 
+                "// TODO"
+                "// hello"))
+        
+        onReceived
+        (fn [^ConnectionId cid, ^ByteString payload]
+            (let pConn (get st.incoming cid))
+            (if (nil? pConn)
+                (invalidRequest cid "message received from an unknown connection")
 
+                (match pConn.theirTarget
+                    Uninit
+                    (do
+                        (let 
+                            switchid (decodeSwitchID payload)
+                            nst &localNode.localState
+                            pSwitch (^*LocalSwitch withMVar nst 
+                                        (println "uinit" switchid)
+                                        (match nst.value
+                                            [LocalNodeValid vst]
+                                            (return (get vst.localSwitches switchid)))
+
+                                            ; LocalNodeClosed
+                                        (return nil)))
+                        
+                        (if (nil? pSwitch)
+                            (delete st.incoming cid)
+                            (assoc st.incoming cid (&IncomingConnection. pConn.theirAddress (&ToSwitch. switchid)))))
+
+                    [ToSwitch sid]
+                    (println sid payload)))))
+
+    (println "handling node message...") 
     (loop []
-        (println "handling node message...")
         (let event (localNode.localEndPoint.Receive))
         (match event
             [ConnectionOpened cid ep]
@@ -96,32 +128,8 @@
                     "}"))
                 ; (recur))
 
-            [Received cid payload]
-            (do
-                (let pConn (get st.incoming cid))
-                (if (nil? pConn)
-                    (invalidRequest cid "message received from an unknown connection")
-
-                    (match pConn.theirTarget
-                        Uninit
-                        (do
-                            (let switchid (decodeSwitchID payload)
-                                 nst &localNode.localState
-                                 pSwitch (^*LocalSwitch withMVar nst 
-                                            (println "uinit" switchid)
-                                            (match nst.value
-                                                [LocalNodeValid vst]
-                                                (return (get vst.localSwitches switchid)))
-
-                                                ; LocalNodeClosed
-                                            (return nil)))
-                            
-                            (if (nil? pSwitch)
-                                (delete st.incoming cid)
-                                (assoc st.incoming cid (&IncomingConnection. pConn.theirAddress (&ToSwitch. switchid)))))
-
-                        [ToSwitch sid]
-                        (println sid payload))))
+            [Received cid payload]  
+            (onReceived cid payload)
 
             [ConnectionClosed cid]
             (do
