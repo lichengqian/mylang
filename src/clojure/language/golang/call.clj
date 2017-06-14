@@ -28,51 +28,24 @@
                     "\n")))
         string/join))
 
+(defmethod go-call 'dissoc
+    [_ m k]
+    (str "delete" 
+        (paren 
+            (str (emit m)
+                ", "
+                (emit k)))))
+
 (defmethod go-call :default
     [name & args]
-    (case (str name)
-      "sleep" (do
-                  (add-import "time")
-                  (str "time.Sleep(" (first args) " * time.Millisecond)"))
-
-      "newMVar" (do
-                    (add-import "sync")
-                    (str
-                      (->> 
-                          (str "value " (emit-type (typeof name))
-                              "\n sync.Mutex")
-                          braceln
-                          (str "struct"))
-                      (->> 
-                          (str "value: " 
-                              (emit (first args))
-                              ",")
-                          braceln)))
-
-      "withMVar" (do
-                    (str
-                      (->>  ; func () RET 
-                          (typeof name)
-                          emit-type
-                          (str "func () "))
-                      (->   ; body
-                          (first args)
-                          emit
-                          (#(str % ".Lock()\n"
-                                 "defer " % ".Unlock()\n"
-                                 (emit-do (rest args))))
-                          braceln)
-                      "()\n"))
-
-      (if (seq args)
+    (if (seq args)
         (->> args
           (map emit)
           (string/join ", ")
           paren
           (str (emit name)))
         ; (str (emit name) "(" (reduce str (interpose "," args)) ")")
-        (str (emit name) "()"))))
-
+        (str (emit name) "()")))
 
 ;; We would like to be able to add source comments for each argument of a
 ;; function inline, but this is not possible (only works in a |, || or &&

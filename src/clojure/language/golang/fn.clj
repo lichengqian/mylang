@@ -1,5 +1,22 @@
 (in-ns 'language.golang)
 
+;;; return function
+(defn- emit-return-default [v]
+  (str "return " (emit v)))
+
+(def ^:dynamic *return* emit-return-default)
+
+(defmethod emit-special [::golang 'return]
+  [_ [_ v]]
+  (*return* v))
+
+(def ^:dynamic *throw* (fn [v] (str "return " (emit v))))
+
+(defmethod emit-special [::golang 'throw] 
+  [_ [ _ err]]
+  (add-import "errors")
+  (*throw* err))
+
 ;;; defn / fn support 
 
 (defn- emit-function-decl
@@ -34,28 +51,37 @@
                   "\n"
                   ", nil")))
 
+            (emit-throw [v]
+              (str "return "
+                (if (nil? (typeof sig))
+                  ""
+                  "nil,")
+                (if (string? v)
+                  (str "errors.New(\"" v "\")")
+                  (emit v))))
+
             (emit-body [body]
               (if @has-err
                 (with-bindings {#'*error-code* (error-code)
-                                #'*return* emit-return}
+                                #'*return* emit-return
+                                #'*throw*  emit-throw}
                   (emit-do body))
-                (emit-do body)))]
+                (with-bindings {#'*return* emit-return-default}
+                  (emit-do body))))]
 
       (check-error-return? body)
+      (println @has-err "has error return for sig : " sig)
       (str (emit-function-sig sig) " {\n"
           (emit-body body)
-          "}\n\n"))))
+          "}"))))
   
 (defmethod emit-function ::golang
   [name doc? sig body]
   (assert (symbol? name))
   (str (emit-doc doc?)
       "func " name
-      (emit-function-decl sig body)))
-
-(defmethod emit-special [::golang 'throw] 
-  [_ [ _ err]]
-  (str "return " (emit err)))
+      (emit-function-decl sig body)
+      "\n\n"))
 
 (defmethod emit-special [::golang 'fn] 
   [_ [ _ sig & body]]

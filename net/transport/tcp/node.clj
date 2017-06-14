@@ -79,7 +79,7 @@
          
         invalidRequest 
         (fn [^ConnectionId cid ^String msg]
-            (delete st.incoming, cid))
+            (dissoc  st.incoming, cid))
 
         onConnectionOpened
         (fn [^ConnectionId cid, ^EndPointAddress ep]
@@ -99,8 +99,8 @@
             (if (nil? pConn)
                 (invalidRequest cid "closed unknown connection")
                 (do
-                    (delete st.incoming cid)
-                    (delete (get st.incomingFrom pConn.theirAddress) cid))))
+                    (dissoc st.incoming cid)
+                    (dissoc (get st.incomingFrom pConn.theirAddress) cid))))
         
         onReceived
         (fn [^ConnectionId cid, ^ByteString payload]
@@ -123,7 +123,7 @@
                                         (return nil)))
                         
                         (if (nil? pSwitch)
-                            (delete st.incoming cid)
+                            (dissoc  st.incoming cid)
                             (assoc st.incoming cid (&IncomingConnection. pConn.theirAddress (&ToSwitch. pSwitch)))))
 
                     [ToSwitch pSwitch]
@@ -142,7 +142,7 @@
                         "for cid, _ := range st.incomingFrom[addr] {"
                         "   delete(st.incoming, cid)"
                         "}")
-                    (delete st.incomingFrom addr))
+                    (dissoc  st.incomingFrom addr))
 
                 EventEndPointFailed (return true)
                 EventTransportFailed (return true))
@@ -180,7 +180,15 @@
 
 (defn setupConnBetween ^*Connection
     [^*LocalNode node ^SwitchID from ^EndPointAddress to]
-    (return nil))
+    (<- conn (node.localEndPoint.Dial to))
+    (<- nbytes (conn.Write (encodeSwitchID from)))
+    (when (== nbytes 8)
+        (withMVar node.localState
+            (match node.localState.value
+                [LocalNodeValid vst]
+                (assoc vst.localConnections (FromTo. from to)
+                    conn))))
+    (throw "conn failed"))
 
 (defn connBetween ^*Connection
     [^*LocalNode node ^SwitchID from ^EndPointAddress to]
@@ -193,7 +201,8 @@
             (return nil)))
     
     (if (nil? conn)
-        (return 
-            (setupConnBetween node from to))
+        (do
+            (<- newconn (setupConnBetween node from to))
+            (return newconn))
         (return conn)))
 

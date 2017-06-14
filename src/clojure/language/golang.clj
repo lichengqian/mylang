@@ -116,10 +116,7 @@
 (defemit-special ::golang
   'ns [path] (set-ns (emit path))
   'import [path] (add-import path)
-  'not [expr] (str "!(" (emit expr) ")")
-  'chan [t n] (str "make(chan " (emit t) ", " (emit n) ")")
-  '<! [c] (str "<-" (emit c))
-  '>! [c v] (str (emit c) "<- " (emit v)))
+  'not [expr] (str "!(" (emit expr) ")"))
 
 (defn- emit-monad-binding
   ([v expr]
@@ -256,9 +253,6 @@
   (let [method (symbol (substring (str method) 1))]
     (emit-method obj method args)))
 
-(defmethod emit-special [::golang 'return] [type [return expr]]
-  (str "return " (emit expr)))
-
 (defmethod emit-special [::golang 'set!] [type [set! var val]]
   (str (check-symbol (emit var)) "=" (emit val)))
 
@@ -365,13 +359,6 @@
     (emit-doc doc?)
     (.emitEnum golang name enums)))
 
-;;; return function
-(def ^:dynamic *return* (fn [v] (str "return " (emit v))))
-
-(defmethod emit-special [::golang 'return]
-  [_ [_ v]]
-  (*return* v))
-
 (defn- typeof [v]
   (:tag (meta v)))
 
@@ -394,14 +381,6 @@
   [_ [_ & body]]
   (emit-let body))
 
-(defmethod emit-special [::golang 'go]
-  [_ [_ & body]]
-  (if (= 1 (count body))
-      (str "go " (emit-do body))
-      (str  "go func() {\n"
-            (emit-do body)
-            "}()\n")))
-  
 (defmethod emit-special [::golang 'main]
   [_ [_  & body]]
   (set-ns "main")
@@ -491,7 +470,8 @@
     (fn [f & args] (simple-symbol f)))
 
 (load "golang/call")
+(load "golang/async")
 (load "golang/type")
 (load "golang/fn")
 (load "golang/match")
-(load "golang/macro")
+(load "golang/macro") 
