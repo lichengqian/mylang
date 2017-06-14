@@ -34,7 +34,7 @@
         ;; however, the remote client won't close the connection nicely but just
         ;; closes the socket)
         (do
-            (Send conn "ping")
+            (SendStr conn "ping")
 
             (let event3 (ep.Receive))
             (println "want3 ConnectionOpened" event3)
@@ -46,7 +46,7 @@
             (println "want5 ErrorEvent" event5))
         
         ;; TEST 4: A subsequent send on an already-open connection will now break
-        (Send conn "ping2")
+        (SendStr conn "ping2")
 
         (notify serverDone)
         (println "server exist"))
@@ -108,7 +108,7 @@
         ;; connections, so we won't agree and hence will receive an error when
         ;; the socket gets closed
         (do
-            (Send conn "ping")
+            (SendStr conn "ping")
 
             (let event3 (ep.Receive))
             (println "want3 ConnectionOpened" event3)
@@ -123,7 +123,7 @@
             (println "want6 ErrorEvent" event6))
             
         ;; TEST 4: A subsequent send on an already-open connection will now break
-        (Send conn "ping2")
+        (SendStr conn "ping2")
 
         (notify serverDone)
         (println "server exist"))

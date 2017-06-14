@@ -32,12 +32,11 @@ type EndPoint struct {
 
 type Connection struct {
 	Close func() error
-	Write func([]byte) (int, error)
+	Send  func([]byte) (int, error)
 }
 
-func Send(conn *Connection, msg string) error {
-	_, err := conn.Write([]byte(msg))
-	return err
+func (conn *Connection) Write(bs []byte) (int, error) {
+	return conn.Write(bs)
 }
 
 func CreateTransport(lAddr string) (*Transport, error) {

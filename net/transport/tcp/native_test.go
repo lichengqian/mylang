@@ -6,6 +6,10 @@ import (
 	"testing"
 )
 
+func SendStr(conn *Connection, msg string) {
+	conn.Send([]byte(msg))
+}
+
 func assertConnectionOpend(t *testing.T, event Event) *EndPointAddress {
 	switch e := event.(type) {
 	case *ConnectionOpened:

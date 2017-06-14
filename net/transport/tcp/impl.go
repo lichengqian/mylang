@@ -85,7 +85,7 @@ func (ourEndPoint *LocalEndPoint) apiConnect(theirAddress EndPointAddress) (*Con
 		Close: func() error {
 			return ourEndPoint.apiClose(theirEndPoint, connId, connAlive)
 		},
-		Write: func(msg []byte) (int, error) {
+		Send: func(msg []byte) (int, error) {
 			return ourEndPoint.apiSend(theirEndPoint, connId, msg, connAlive)
 		},
 	}, nil

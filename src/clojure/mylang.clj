@@ -173,11 +173,6 @@
     ~message
     ~@(map (fn [f] (with-meta (list `script f) (meta f))) forms)))
 
-
-
-
-
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; IMPLEMENTATION FUNDAMENTALS
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
