@@ -171,13 +171,6 @@
            m))
          " }"))
 
-    ;; This requires bash 4
-    ;; (str
-    ;;  "{ "
-    ;;  "declare -a " (emit var-name) "; "
-    ;;  (check-symbol (emit var-name)) "=" (emit expr)
-    ;;  "; }")
-
 (defmethod emit-special [::golang 'val] [type [var var-name expr]]
   (if (instance? clojure.lang.IPersistentMap expr)
     (set-map-values var-name expr)

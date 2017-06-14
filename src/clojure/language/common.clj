@@ -6,18 +6,7 @@
    [mylang
     :refer :all]))
 
-;;; utils 
-(defn paren [s]
-    (str "(" s ")"))
-
-(defn bracket [s]
-    (str "[" s "]"))
-
-(defn brace [s]
-    (str "{" s "}"))
-
-(defn braceln [s]
-    (str "{\n" s "\n}"))
+(load "common/util")
 
 ;; Main dispatch functions.
 ;;
@@ -275,11 +264,6 @@
       (string/split-lines code)
       (str "// not for lang " lang))))
 
-(defn check-doc [expr]
-  (if (string? (first expr))
-    [(first expr) (next expr)]
-    [nil expr]))
-
 (defmethod emit-special [::common-impl 'defn] [type [fn & expr]]
   (let [name (first expr)
         [doc [signature & body]] (check-doc (next expr))]
@@ -324,29 +308,4 @@
   [& scripts]
   (chain-with "&&" scripts))
 
-(def ^:dynamic *status-marker* "#> ")
-(def ^:dynamic *status-fail* " : FAIL")
-(def ^:dynamic *status-success* " : SUCCESS")
 (def ^:dynamic *error-code* "*error-code*")
-
-(defn checked-start [message]
-  (str "echo '" message "...';"))
-
-(defn checked-fail [message]
-  (str "echo '" *status-marker* message *status-fail* "'; exit 1;"))
-
-(defn checked-success [message]
-  (str "echo '" *status-marker* message *status-success* "'"))
-
-(defmethod checked-commands ::common-impl
-  [message & cmds]
-  (let [chained-cmds (apply chain-commands cmds)
-        message (string/replace message #"'" "'\\\\''")]
-    (if (string/blank? chained-cmds)
-      ""
-      (str
-       (checked-start message) \newline
-       "{\n" chained-cmds "\n } || { " (checked-fail message)
-       "} >&2 " \newline
-       (checked-success message) \newline))))
-
