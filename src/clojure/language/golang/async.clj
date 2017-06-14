@@ -39,8 +39,7 @@
     [f v & body]
     (println "withMVar " v)
     (let [sig (with-meta [] (meta f))
-          prefix (str v ".Lock()\n defer " v ".Unlock()\n")
-          code (list* (list 'native prefix) body)]
+          code (list* (list 'lock! v) body)]
         (str
             (emit `(fn ~sig ~@code))
             "()\n")))

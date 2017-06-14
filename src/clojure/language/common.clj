@@ -187,18 +187,15 @@
            e))))
 
      :else
-     (let [argseq (with-source-line-comments false
-                    (->>
-                     args
-                     splice-args
-                     (map emit)
-                     (filter (complement string/blank?))
-                     doall))]
-       (if (is-macro fn-name-or-map)
-          (apply emit-macro-call 
-              (symbol (name fn-name-or-map)) argseq)
-          (apply emit-function-call 
-              fn-name-or-map args))))))
+     (if (is-macro fn-name-or-map)
+        (let [_result
+                (apply emit-macro-call
+                    (symbol (name fn-name-or-map)) args)]
+            (if (string? _result)
+              _result
+              (emit _result)))
+        (apply emit-function-call
+            fn-name-or-map args)))))
 
 (defn- emit-s-expr [expr]
   (if (symbol? (first expr))

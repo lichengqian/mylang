@@ -176,18 +176,22 @@
 
 (defn sendPayload
     [^*LocalSwitch localSwitch ^EndPointAddress to ^ByteString payload]
-    (connBetween localSwitch.switchNode localSwitch.switchID to))
+    (<- conn (connBetween localSwitch.switchNode localSwitch.switchID to))
+    (<- bytes (conn.Send payload))
+    (println bytes)
+    ;; TODO: lcoalCtrlChan? how to handle send failed 
+    (return))
 
 (defn setupConnBetween ^*Connection
     [^*LocalNode node ^SwitchID from ^EndPointAddress to]
     (<- conn (node.localEndPoint.Dial to))
     (<- nbytes (conn.Write (encodeSwitchID from)))
     (when (== nbytes 8)
-        (withMVar node.localState
-            (match node.localState.value
+        (matchMVar! node.localState
+            ; (match node.localState.value
                 [LocalNodeValid vst]
                 (assoc vst.localConnections (FromTo. from to)
-                    conn))))
+                    conn)))
     (throw "conn failed"))
 
 (defn connBetween ^*Connection
@@ -200,9 +204,8 @@
                     (get vst.localConnections (FromTo. from to))))
             (return nil)))
     
-    (if (nil? conn)
-        (do
-            (<- newconn (setupConnBetween node from to))
-            (return newconn))
-        (return conn)))
+    (when (nil? conn)
+        (<- newconn (setupConnBetween node from to))
+        (return newconn))
+    (return conn))
 
