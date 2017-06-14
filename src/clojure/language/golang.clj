@@ -31,7 +31,7 @@
 (def logical-operators
   ^{:doc "Logical operators for test expressions."
     :private true}
-  #{'== '= '< '> '<= '>= '!= '<< '>> '<<< '>>> '& '|
+  #{'== '< '> '<= '>= '!= '<< '>> '<<< '>>> '& '|
     'file-exists? 'directory? 'symlink? 'readable? 'writeable? 'empty?})
 
 (def
@@ -107,14 +107,11 @@
   (when (< (count args) 2)
     (throw (Exception. "Less than 2 infix arguments not supported yet.")))
   
-  (let [[open close] (cond
-                      (logical-operator? operator) ["[ " " ]"]
-                      (arithmetic-operators operator) ["(" ")"]
-                      :else ["" ""])
+  (let [[open close] ["(" ")"]
         quoting (if (quoted-operator? operator) quoted identity)]
-    (str open (emit-quoted-if-not-subexpr quoting (first args)) " "
+    (str open (emit (first args)) " "
         (get infix-conversions operator operator)
-        " " (emit-quoted-if-not-subexpr quoting (second args)) close)))
+        " " (emit (second args)) close)))
 
 (defemit-special ::golang
   'ns [path] (set-ns (emit path))
