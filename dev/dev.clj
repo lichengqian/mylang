@@ -17,6 +17,7 @@
    [clojure.set :as set]
    [clojure.string :as string]
    [clojure.test :as test]
+   [clojure.java.shell :refer [sh]]
    [clojure.tools.namespace.repl :refer [refresh refresh-all clear]]
    [com.stuartsierra.component :as component]
    [com.stuartsierra.component.repl :refer [reset set-init start stop system]]
@@ -42,3 +43,8 @@
 
 ;; 相当于macro，代码中被调用后可以生成代码
 (defn prin [t] (emit `(println ~t)))
+
+(defn r []
+  (sh "touch" "src/clojure/language/golang.clj")
+  (reset)
+  (go-make "net/transport/tcp"))
