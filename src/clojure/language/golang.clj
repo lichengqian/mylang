@@ -438,137 +438,6 @@
         (emit arg)))
     ")"))
 
-;; We would like to be able to add source comments for each argument of a
-;; function inline, but this is not possible (only works in a |, || or &&
-;; pipeline).
-(defmethod emit-function-call ::golang
-  [name & args]
-  ; (println (str name) args)
-  (cond
-    (string/ends-with? (str name) ".")    ; enum constructor
-    (->> args
-        (map emit)
-        (string/join ", ")
-        brace
-        (str (substring (str name) 0 (- (count (str name)) 1))))
-
-    (string/starts-with? (str name) "map->")  ; struct constructor 
-    (do
-      (println (into [] (first args)))
-      (->> (into [] (first args))
-          (map (fn [[k v]] (str (emit k) ": " (emit v) ",\n")))
-          string/join
-          braceln
-          (str (substring (str name) 5))))
-        
-    :else
-    (case (str name)
-      "sleep" (do
-                  (add-import "time")
-                  (str "time.Sleep(" (first args) " * time.Millisecond)"))
-
-      "nil?" (str (emit (first args))
-                  " == nil")
-
-      "some?" (str (emit (first args))
-                  " /= nil")
-
-      "get"   (let [mv (first args)
-                    k  (second args)]
-                  (str (emit mv) (bracket (emit k))))
-
-      "assoc" (let [mv (first args)
-                    kvs (partition 2 (rest args))
-                    emit-kv (fn [[k v]]
-                                (str  (emit mv) 
-                                      (bracket (emit k)) 
-                                      " = "
-                                      (emit v)
-                                      "\n"))]
-                  (->> kvs
-                    (map emit-kv)
-                    string/join))
-
-      "newMVar" (do
-                    (add-import "sync")
-                    (str
-                      (->> 
-                          (str "value " (emit-type (typeof name))
-                              "\n sync.Mutex")
-                          braceln
-                          (str "struct"))
-                      (->> 
-                          (str "value: " 
-                              (emit (first args))
-                              ",")
-                          braceln)))
-
-      "withMVar" (do
-                    (str
-                      (->>  ; func () RET 
-                          (typeof name)
-                          emit-type
-                          (str "func () "))
-                      (->   ; body
-                          (first args)
-                          emit
-                          (#(str % ".Lock()\n"
-                                 "defer " % ".Unlock()\n"
-                                 (emit-do (rest args))))
-                          braceln)
-                      "()\n"))
-
-      (if (seq args)
-        (->> args
-          (map emit)
-          (string/join ", ")
-          paren
-          (str (emit name)))
-        ; (str (emit name) "(" (reduce str (interpose "," args)) ")")
-        (str (emit name) "()")))))
-
-(defmethod emit-type-builtin ::golang
-  [t]
-  ; (println t)
-  (if (nil? t)
-    ""
-    (case (str t)
-      "Void" ""
-      "Bool" "bool"
-      "UInt32" "uint32"
-      "UInt64" "uint64"
-      "String" "string"
-      "ByteString" "[]byte"
-      "Error" "error"
-      "Chan" "chan"
-      "Lock"  (do (add-import "sync") "sync.Mutex")
-
-      "Listener" (do (add-import "net") "net.Listener")
-      "Conn" (do (add-import "net") "net.Conn")
-      (emit t))))
-
-(defmethod emit-type-constructor ::golang
-  [c args]
-  (case (str c)
-    "Either" (str "(" (emit-type (second args)) ", " (emit-type (first args)) ")")
-    "Map" (str "map[" (emit-type (first args)) "]*" (emit-type (second args)))
-    "Set" (str "map[" (emit-type (first args)) "]struct{}")
-    "IO" (str "(" (emit-type (first args)) ", error)")
-    "MVar" 
-    (do
-        (add-import "sync")
-        (string/join "\n"
-            ["struct {"
-             (str "  value " (emit-type (first args)))
-             "  sync.Mutex"
-             "}"]))
-
-    (->> args
-        (map emit-type)
-        (string/join " ")
-        (str (emit-type c) " "))))
-        
-
 (defmethod emit-ns ::golang
   [s]
   (str "package " s))
@@ -621,6 +490,8 @@
           brace
           (str "type " n " struct"))))
 
+(load "golang/call")
+(load "golang/type")
 (load "golang/fn")
 (load "golang/match")
 (load "golang/macro")
