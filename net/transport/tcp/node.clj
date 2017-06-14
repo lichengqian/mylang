@@ -9,9 +9,14 @@
     (LocalNodeValid ValidLocalNodeState)
     LocalNodeClosed)
 
+(defrecord FromTo
+    [^SwitchID from
+     ^EndPointAddress to])
+
 (defrecord ValidLocalNodeState
-    [^"map[SwitchID]*LocalSwitch" localSwitches   
-     ^"map[SwitchID]*Connection" localConnections])
+    [^"map[SwitchID]*LocalSwitch" localSwitches
+    ;; | Outgoing connections
+     ^"map[FromTo]*Connection" localConnections])
 
 (defrecord LocalSwitch
     [^SwitchID switchID
@@ -39,7 +44,7 @@
     (let 
         st (LocalNodeValid. (map->ValidLocalNodeState 
                                 {localSwitches (native "make(map[SwitchID]*LocalSwitch)")
-                                 localConnections (native "make(map[SwitchID]*Connection)")}))
+                                 localConnections (native "make(map[FromTo]*Connection)")}))
         node (map->LocalNode
                 {localEndPoint endpoint
                  localState (^LocalNodeState newMVar &st)}))
@@ -164,4 +169,31 @@
             
             EndPointClosed 
             return)))
+
+;;;------------------------------------------------------------------------------
+;;; Message sending                                                            --
+;;;------------------------------------------------------------------------------
+
+(defn sendPayload
+    [^*LocalSwitch localSwitch ^EndPointAddress to ^ByteString payload]
+    (connBetween localSwitch.switchNode localSwitch.switchID to))
+
+(defn setupConnBetween ^*Connection
+    [^*LocalNode node ^SwitchID from ^EndPointAddress to]
+    (return nil))
+
+(defn connBetween ^*Connection
+    [^*LocalNode node ^SwitchID from ^EndPointAddress to]
+    (let conn 
+        (^*Connection withMVar node.localState
+            (match node.localState.value
+                [LocalNodeValid vst]
+                (return
+                    (get vst.localConnections (FromTo. from to))))
+            (return nil)))
+    
+    (if (nil? conn)
+        (return 
+            (setupConnBetween node from to))
+        (return conn)))
 

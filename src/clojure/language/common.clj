@@ -206,8 +206,10 @@
                      (filter (complement string/blank?))
                      doall))]
        (if (is-macro fn-name-or-map)
-          (apply emit-macro-call fn-name-or-map argseq)
-          (apply emit-function-call fn-name-or-map args))))))
+          (apply emit-macro-call 
+              (symbol (name fn-name-or-map)) argseq)
+          (apply emit-function-call 
+              fn-name-or-map args))))))
 
 (defn- emit-s-expr [expr]
   (if (symbol? (first expr))

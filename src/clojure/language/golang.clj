@@ -580,18 +580,6 @@
   [s]
   (str "package " s))
 
-(defmethod emit-macro-call [::golang 'decode!]
-  [_ enum-name]
-  (.macro_decode golang
-    enum-name 
-    (get-enum enum-name)))
-
-(defmethod emit-macro-call [::golang 'encode!]
-  [_ enum-name]
-  (.macro_encode golang
-    enum-name 
-    (get-enum enum-name)))
-
 (defn default-go-ns [path]
     (-> path
         io/file
@@ -605,67 +593,6 @@
         (string/join "\n")
         paren
         (str "import ")))
-
-;;; defn / fn support 
-(defn- emit-function-decl
-  [sig body]
-  (println (meta sig))
-  (with-local-vars [has-err false]
-    (letfn [(check-error-return? [body]
-                (prewalk #(if (or (= '<- %) (= 'throw %)) 
-                              (do
-                                (var-set has-err true)
-                                %)
-                              %)
-                        body))
-            (emit-function-sig
-              [sig]
-              (let [ret-type (if @has-err [(typeof sig), 'Error] [(typeof sig)])
-                    args (->> sig
-                          (map emit-arg)
-                          (string/join ", ")
-                          paren)]
-                  (str args " " 
-                      (emit-type (filterv some? ret-type)))))
-
-            (error-code []
-              (if (nil? (typeof sig))
-                "return err\n"
-                "return nil, err\n"))
-
-            (emit-return [v]
-              (str "return " (emit v)
-                (if (nil? (typeof sig))
-                  "\n"
-                  ", nil")))
-
-            (emit-body [body]
-              (if @has-err
-                (with-bindings {#'*error-code* (error-code)
-                                #'*return* emit-return}
-                  (emit-do body))
-                (emit-do body)))]
-
-      (check-error-return? body)
-      (str (emit-function-sig sig) " {\n"
-          (emit-body body)
-          "}\n\n"))))
-  
-(defmethod emit-function ::golang
-  [name doc? sig body]
-  (assert (symbol? name))
-  (str (emit-doc doc?)
-      "func " name
-      (emit-function-decl sig body)))
-
-(defmethod emit-special [::golang 'throw] 
-  [_ [ _ err]]
-  (str "return " (emit err)))
-
-(defmethod emit-special [::golang 'fn] 
-  [_ [ _ sig & body]]
-  (str "func "
-      (emit-function-decl sig body)))
 
 ;;; loop / recur support
 (def ^:dynamic *recur* nil)
@@ -688,40 +615,6 @@
   [_ [_  & exprs]]
   (str (*recur* exprs) "\ncontinue\n"))
 
-;;; enum match support 
-(defn- emit-branch
-  ([k expr]
-   (cond
-      (symbol? k)
-      (str "case " (emit k) ":\n"
-          (emit expr))
-
-      (vector? k)
-      (let [vars (rest k)
-            idx (range 1 (+ 1 (count vars)))
-            assign-var (str (string/join ", " (map emit vars))
-                            " := "
-                            (string/join ", "
-                                (map #(str "_s._" %) idx))
-                            "\n")]
-        (str "case *" (str (first k) ":\n")
-            assign-var
-            (emit expr)))))
-            
-  ([expr]
-   (str "default:\n"
-     (emit expr))))
-
-(defmethod emit-special [::golang 'match]
-  [type [_ test & exprs]]
-  (let [code-test (str (emit test) ".(type)")
-        branches (partition 2 exprs)]
-      (->> branches
-          (map #(apply emit-branch %))
-          (string/join "\n")
-          braceln
-          (str "switch _s := " code-test))))
-
 ;;; defrecord support
 (defmethod emit-special [::golang 'defrecord]
   [type [_ n fields]]
@@ -734,3 +627,7 @@
           string/join
           brace
           (str "type " n " struct"))))
+
+(load "golang/fn")
+(load "golang/match")
+(load "golang/macro")
