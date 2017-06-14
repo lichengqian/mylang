@@ -1,55 +1,39 @@
 (in-ns 'language.golang)
 
-;; We would like to be able to add source comments for each argument of a
-;; function inline, but this is not possible (only works in a |, || or &&
-;; pipeline).
-(defmethod emit-function-call ::golang
-  [name & args]
-  ; (println (str name) args)
-  (cond
-    (string/ends-with? (str name) ".")    ; enum constructor
-    (->> args
-        (map emit)
-        (string/join ", ")
-        brace
-        (str (substring (str name) 0 (- (count (str name)) 1))))
+(defmethod go-call 'nil?
+    [_ v]
+    (str (emit v) 
+        " == nil"))
 
-    (string/starts-with? (str name) "map->")  ; struct constructor 
-    (do
-      (println (into [] (first args)))
-      (->> (into [] (first args))
-          (map (fn [[k v]] (str (emit k) ": " (emit v) ",\n")))
-          string/join
-          braceln
-          (str (substring (str name) 5))))
-        
-    :else
+(defmethod go-call 'some?
+    [_ v]
+    (str (emit v) 
+        " != nil"))
+
+;; map op 
+(defmethod go-call 'get
+    [_ m k]
+    (str (emit m) 
+        (bracket (emit k))))
+
+(defmethod go-call 'assoc
+    [_ m & kvs]
+    (println "calling assoc......")
+    (->> (partition 2 kvs)
+        (map (fn [[k v]]
+                (str  (emit m)
+                    (bracket (emit k))
+                    " = "
+                    (emit v)
+                    "\n")))
+        string/join))
+
+(defmethod go-call :default
+    [name & args]
     (case (str name)
       "sleep" (do
                   (add-import "time")
                   (str "time.Sleep(" (first args) " * time.Millisecond)"))
-
-      "nil?" (str (emit (first args))
-                  " == nil")
-
-      "some?" (str (emit (first args))
-                  " /= nil")
-
-      "get"   (let [mv (first args)
-                    k  (second args)]
-                  (str (emit mv) (bracket (emit k))))
-
-      "assoc" (let [mv (first args)
-                    kvs (partition 2 (rest args))
-                    emit-kv (fn [[k v]]
-                                (str  (emit mv) 
-                                      (bracket (emit k)) 
-                                      " = "
-                                      (emit v)
-                                      "\n"))]
-                  (->> kvs
-                    (map emit-kv)
-                    string/join))
 
       "newMVar" (do
                     (add-import "sync")
@@ -87,5 +71,31 @@
           paren
           (str (emit name)))
         ; (str (emit name) "(" (reduce str (interpose "," args)) ")")
-        (str (emit name) "()")))))
+        (str (emit name) "()"))))
 
+
+;; We would like to be able to add source comments for each argument of a
+;; function inline, but this is not possible (only works in a |, || or &&
+;; pipeline).
+(defmethod emit-function-call ::golang
+  [name & args]
+  ; (println (str name) args)
+  (cond
+    (string/ends-with? (str name) ".")    ; enum constructor
+    (->> args
+        (map emit)
+        (string/join ", ")
+        brace
+        (str (substring (str name) 0 (- (count (str name)) 1))))
+
+    (string/starts-with? (str name) "map->")  ; struct constructor 
+    (do
+      (println (into [] (first args)))
+      (->> (into [] (first args))
+          (map (fn [[k v]] (str (emit k) ": " (emit v) ",\n")))
+          string/join
+          braceln
+          (str (substring (str name) 5))))
+        
+    :else
+    (apply go-call name args)))

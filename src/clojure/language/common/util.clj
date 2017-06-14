@@ -19,3 +19,5 @@
     [(first expr) (next expr)]
     [nil expr]))
 
+(defn simple-symbol [s]
+    (symbol (name s)))

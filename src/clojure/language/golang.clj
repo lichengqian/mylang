@@ -487,6 +487,9 @@
           brace
           (str "type " n " struct"))))
 
+(defmulti go-call
+    (fn [f & args] (simple-symbol f)))
+
 (load "golang/call")
 (load "golang/type")
 (load "golang/fn")
