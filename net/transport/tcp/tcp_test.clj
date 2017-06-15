@@ -2,8 +2,8 @@
 ;;; the socket without sending an explicit control message to the server first)
 (deftest earlyDisconnect
     (let 
-        clientAddr (chan EndPointAddress 1)
-        serverAddr (chan EndPointAddress 1)
+        clientAddr (^EndPointAddress chan 1)
+        serverAddr (^EndPointAddress chan 1)
         serverDone (newNotifier))
     (println "testEarlyDisconnect")
 
@@ -73,8 +73,8 @@
 ;;; Test the behaviour of a premature CloseSocket request
 (deftest earlyCloseSocket
     (let 
-        clientAddr (chan EndPointAddress 1)
-        serverAddr (chan EndPointAddress 1)
+        clientAddr (^EndPointAddress chan 1)
+        serverAddr (^EndPointAddress chan 1)
         serverDone (newNotifier))
     (println "testEarlyCloseSocket")
     
@@ -177,8 +177,8 @@
 ;;; receiving an (already underway) CloseSocket request
 (deftest ignoreCloseSocket
     (let 
-        clientAddr (chan EndPointAddress 1)
-        serverAddr (chan EndPointAddress 1)
+        clientAddr (^EndPointAddress chan 1)
+        serverAddr (^EndPointAddress chan 1)
         clientDone (newNotifier)
         serverDone (newNotifier)
         connectionEstablished (newNotifier))
@@ -258,8 +258,8 @@
 ;;; CloseSocket request to the client, and must block until the client responds.)
 (deftest blockAfterCloseSocket
     (let 
-        clientAddr (chan EndPointAddress 1)
-        serverAddr (chan EndPointAddress 1)
+        clientAddr (^EndPointAddress chan 1)
+        serverAddr (^EndPointAddress chan 1)
         clientDone (newNotifier)
         serverDone (newNotifier)
         connectionEstablished (newNotifier))
@@ -340,7 +340,7 @@
 (deftest unnecessaryConnect
     (let 
         numThreads 10
-        serverAddr (chan EndPointAddress 1)
+        serverAddr (^EndPointAddress chan 1)
         clientDone (newNotifier))
     (println "testUnnecessaryConnect")
 
@@ -387,7 +387,7 @@
         transport (internal.ToTransport)
         serverDone (newNotifier)
         clientDone (newNotifier)
-        serverAddr (chan EndPointAddress 1))
+        serverAddr (^EndPointAddress chan 1))
 
     ;; server
     (go 
@@ -426,7 +426,7 @@
 ;;;   protocol.)
 (deftest closeEndPoint
     (let
-        serverAddr (chan EndPointAddress 1)
+        serverAddr (^EndPointAddress chan 1)
         serverDone (newNotifier))
     
     ;; A server which accepts one connection and then attempts to close the

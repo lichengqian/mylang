@@ -8,8 +8,19 @@
             (emit-do body)
             "}()\n")))
 
+(defn- go-chan
+    ([c]
+     (str "make(chan " (emit-type (typeof c)) ")"))
+    ([c n]
+     (str "make(chan " (emit-type (typeof c)) ", " (emit n) ")")))
+
+(defmethod emit-special [::golang 'chan]
+    [c [& body]]
+    ; (println "emit chan: " (typeof c))
+    (apply go-chan body))
+
 (defemit-special ::golang
-  'chan [t n] (str "make(chan " (emit t) ", " (emit n) ")")
+;   'chan [t n] (str "make(chan " (emit t) ", " (emit n) ")")
   '<! [c] (str "<-" (emit c))
   '>! [c v] (str (emit c) "<- " (emit v)))
 

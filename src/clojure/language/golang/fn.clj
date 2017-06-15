@@ -70,7 +70,7 @@
                   (emit-do body))))]
 
       (check-error-return? body)
-      (println @has-err "has error return for sig : " sig)
+      ; (println @has-err "has error return for sig : " sig)
       (str (emit-function-sig sig) " {\n"
           (emit-body body)
           "}"))))

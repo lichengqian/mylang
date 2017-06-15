@@ -18,7 +18,7 @@
 
 (defmethod go-call 'assoc
     [_ m & kvs]
-    (println "calling assoc......")
+    ; (println "calling assoc......")
     (->> (partition 2 kvs)
         (map (fn [[k v]]
                 (str  (emit m)
@@ -70,7 +70,7 @@
 ;; pipeline).
 (defmethod emit-function-call ::golang
   [name & args]
-  (println "function-call:" name args)
+;   (println "function-call:" name args)
   (if (symbol? name)
     (cond
         (string/ends-with? (str name) ".")    ; enum constructor

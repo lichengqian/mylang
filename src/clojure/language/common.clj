@@ -205,7 +205,7 @@
        (and (= (first (str head)) \.) (> (count (str head)) 1))
        (emit-special 'dot-method expr1)
 
-       (special-form? head) (emit-special head expr1)
+       (special-form? head) (emit-special head expr)
 
        (infix-operator? head) (emit-infix head expr1)
        (macro? head) (emit (macroexpand-1 expr))
