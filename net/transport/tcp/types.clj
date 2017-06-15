@@ -12,7 +12,7 @@
     TransportClosed)
 
 (struct ValidTransportState
-    _localEndPoints (Map EndPointId LocalEndPoint)
+    _localEndPoints (Map EndPointId *LocalEndPoint)
     _nextEndPointId EndPointId)
 
 (struct LocalEndPoint
@@ -27,7 +27,7 @@
 (struct ValidLocalEndPointState
     _localNextConnOutId   LightweightConnectionId
     _nextConnInId       HeavyweightConnectionId
-    _localConnections   (Map EndPointAddress RemoteEndPoint))
+    _localConnections   (Map EndPointAddress *RemoteEndPoint))
 
 (struct RemoteEndPoint
     remoteAddress EndPointAddress

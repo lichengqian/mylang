@@ -6,7 +6,7 @@
   (if (nil? t)
     ""
     (case (str t)
-      "Void" ""
+      "Void" "struct{}"
       "Bool" "bool"
       "UInt32" "uint32"
       "UInt64" "uint64"
@@ -24,7 +24,7 @@
   [c args]
   (case (str c)
     "Either" (str "(" (emit-type (second args)) ", " (emit-type (first args)) ")")
-    "Map" (str "map[" (emit-type (first args)) "]*" (emit-type (second args)))
+    "Map" (str "map[" (emit-type (first args)) "]" (emit-type (second args)))
     "Set" (str "map[" (emit-type (first args)) "]struct{}")
     "IO" (str "(" (emit-type (first args)) ", error)")
     "MVar" 
@@ -47,16 +47,28 @@
     (list? type-exp)
     (= 'Map (first type-exp))))
 
+(defn- settype? 
+  [type-exp]
+  (and 
+    (list? type-exp)
+    (= 'Set (first type-exp))))
+
 (defn- mapmaptype?
   [type-exp]
   (if (maptype? type-exp)
     (maptype? (last type-exp))
     false))
 
+(defn- mapsettype?
+  [type-exp]
+  (if (maptype? type-exp)
+    (settype? (last type-exp))
+    false))
+
 (defn- emit-mapmaptype
-  [alias [_ k1 [_ k2 v]]]
+  [alias [_ k1 [_ k2 v :as t2] :as t]]
   (println alias k1 k2 v)
-  (let [str-t (str "map[" (emit-type k1) "]map[" (emit-type k2) "]" (emit-type v))
+  (let [str-t (emit-type t)
         str-decl (str "type " (emit alias) " " str-t)
         str-new
           (str "func new" (emit alias) "() " (emit alias)
@@ -77,24 +89,68 @@
             (paren (str "mm " (emit alias)))
             "assoc_in "
             (paren (str "from " (emit-type k1) ", to " (emit-type k2) ", v " (emit-type v)))
-            (braceln "	m, ok := mm[from]
+            (braceln (str "	m, ok := mm[from]
                 if !ok {
-                  m = make(map[EndPointAddress]*Connection)
+                  m = make" (paren (emit-type t2)) "
                   mm[from] = m
                 }
                 m[to] = v
-              "))]
+              ")))]
             
       (str  str-decl "\n\n"
             str-new "\n"
             str-get "\n"
             str-assoc "\n")))
   
+(defn- emit-mapsettype
+  [alias [_ k1 [_ k2 :as t2] :as t]]
+  (println alias k1 k2)
+  (let [str-t (emit-type t)
+        str-decl (str "type " (emit alias) " " str-t)
+        str-new
+          (str "func new" (emit alias) "() " (emit alias)
+            (braceln (str "return make" (paren str-t))))
+        str-contains
+          (str "func "
+            (paren (str "mm " (emit alias)))
+            "contains "
+            (paren (str "from " (emit-type k1) ", to " (emit-type k2))) " bool "
+            "{
+                if m, ok := mm[from]; ok {
+                  _, ok = m[to]
+                  return ok
+                }
+                return false
+              }")
+        str-assoc
+          (str "func "
+            (paren (str "mm " (emit alias)))
+            "assoc_in "
+            (paren (str "from " (emit-type k1) ", to " (emit-type k2)))
+            (braceln (str "	m, ok := mm[from]
+                if !ok {
+                  m = make" (paren (emit-type t2)) "
+                  mm[from] = m
+                }
+                m[to] = struct{}{}
+              ")))]
+            
+      (str  str-decl "\n\n"
+            str-new "\n"
+            str-contains "\n"
+            str-assoc "\n")))
+  
 
 (defmethod emit-special [::golang 'type]
   [_ [_ alias real-type]]
-  (if (mapmaptype? real-type)
+  (cond 
+    (mapmaptype? real-type)
     (emit-mapmaptype alias real-type)
+
+    (mapsettype? real-type)
+    (emit-mapsettype alias real-type)
+
+    :else
     (str "type " (emit alias) " " (emit-type real-type) "\n\n")))
 
 ;;; mapmap op

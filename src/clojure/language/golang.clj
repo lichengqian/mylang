@@ -197,7 +197,10 @@
 
   clojure.lang.Ratio (str (float expr))
   clojure.lang.Keyword (name expr)
-  clojure.lang.Symbol (str expr)
+  clojure.lang.Symbol 
+    (if (= 'Void expr)
+      "struct{}{}"
+      (str expr))
 
   clojure.lang.IPersistentVector
     (str (if *delimited-sequence* "(" "")

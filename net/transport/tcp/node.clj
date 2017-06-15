@@ -108,15 +108,17 @@
     (ToSwitch *LocalSwitch)
     ToNode)
 
+(type IncomingConnectionMap (Map EndPointAddress (Set ConnectionId)))
+
 (defrecord ConnectionState
     [^"map[ConnectionId]*IncomingConnection" incoming
-     ^"map[EndPointAddress]map[ConnectionId]struct{}" incomingFrom])
+     ^IncomingConnectionMap incomingFrom])
 
 (defn initConnectionState ^*ConnectionState []
     (native
         "return &ConnectionState {"
         "   incoming: make(map[ConnectionId]*IncomingConnection),"
-        "   incomingFrom: make(map[EndPointAddress]map[ConnectionId]struct{}),"
+        "   incomingFrom: newIncomingConnectionMap(),"
         "}"))
 
 (defn handleNodeMessages [^*LocalNode localNode]
@@ -130,14 +132,7 @@
         onConnectionOpened
         (fn [^ConnectionId cid, ^EndPointAddress ep]
             (assoc st.incoming cid (&IncomingConnection. ep (Uninit.)))
-            (native
-                "if data, ok := st.incomingFrom[ep]; ok {"
-                    "data[cid] = struct{}{}"
-                "} else {"
-                    "data = make(map[ConnectionId]struct{})"
-                    "st.incomingFrom[ep] = data"
-                    "data[cid] = struct{}{}"
-                "}"))
+            (assoc-in st.incomingFrom [ep] cid))
 
         onConnectionClosed 
         (fn [^ConnectionId cid]
