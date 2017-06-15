@@ -36,8 +36,15 @@
                 ", "
                 (emit k)))))
 
-(defmethod go-call :default
-    [name & args]
+(defmethod go-call 'finally
+    [_ body finalizer]
+    (let [_defer (str "defer " (emit finalizer))]
+        `((fn []
+            (native ~_defer)
+            ~body))))
+
+(defn- go-call-default
+    [name args]
     (if (seq args)
         (->> args
           (map emit)
@@ -47,28 +54,35 @@
         ; (str (emit name) "(" (reduce str (interpose "," args)) ")")
         (str (emit name) "()")))
 
+(defmethod go-call :default
+    [name & args]
+    (go-call-default name args))
+
 ;; We would like to be able to add source comments for each argument of a
 ;; function inline, but this is not possible (only works in a |, || or &&
 ;; pipeline).
 (defmethod emit-function-call ::golang
   [name & args]
-  ; (println (str name) args)
-  (cond
-    (string/ends-with? (str name) ".")    ; enum constructor
-    (->> args
-        (map emit)
-        (string/join ", ")
-        brace
-        (str (substring (str name) 0 (- (count (str name)) 1))))
+  (println "function-call:" name args)
+  (if (symbol? name)
+    (cond
+        (string/ends-with? (str name) ".")    ; enum constructor
+        (->> args
+            (map emit)
+            (string/join ", ")
+            brace
+            (str (substring (str name) 0 (- (count (str name)) 1))))
 
-    (string/starts-with? (str name) "map->")  ; struct constructor 
-    (do
-      (println (into [] (first args)))
-      (->> (into [] (first args))
-          (map (fn [[k v]] (str (emit k) ": " (emit v) ",\n")))
-          string/join
-          braceln
-          (str (substring (str name) 5))))
-        
-    :else
-    (apply go-call name args)))
+        (string/starts-with? (str name) "map->")  ; struct constructor 
+        (do
+            (println (into [] (first args)))
+            (->> (into [] (first args))
+                (map (fn [[k v]] (str (emit k) ": " (emit v) ",\n")))
+                string/join
+                braceln
+                (str (substring (str name) 5))))
+            
+        :else
+        (apply go-call name args))
+    
+    (go-call-default name args)))

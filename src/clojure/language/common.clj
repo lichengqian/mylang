@@ -187,15 +187,15 @@
            e))))
 
      :else
-     (if (is-macro fn-name-or-map)
-        (let [_result
+     (let [_result
+            (if (is-macro fn-name-or-map)
                 (apply emit-macro-call
-                    (symbol (name fn-name-or-map)) args)]
-            (if (string? _result)
-              _result
-              (emit _result)))
-        (apply emit-function-call
-            fn-name-or-map args)))))
+                    (symbol (name fn-name-or-map)) args)
+                (apply emit-function-call
+                    fn-name-or-map args))]
+        (if (string? _result)
+          _result
+          (emit _result))))))
 
 (defn- emit-s-expr [expr]
   (if (symbol? (first expr))
