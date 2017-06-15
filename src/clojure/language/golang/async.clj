@@ -49,9 +49,6 @@
 (defmethod go-call 'withMVar
     [f v & body]
     (println "withMVar " v)
-    (let [sig (with-meta [] (meta f))
-          code (list* (list 'lock! v) body)]
-        (str
-            (emit `(fn ~sig ~@code))
-            "()\n")))
+    (let [sig (with-meta [] (meta f))]
+        `((fn ~sig (lock! ~v) ~@body))))
 
