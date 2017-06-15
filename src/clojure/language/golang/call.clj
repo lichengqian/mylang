@@ -43,6 +43,13 @@
             (native ~_defer)
             ~body))))
 
+(defmethod go-call 'forever
+    [_ & body]
+    (str "for "
+        (->> body
+            emit-do
+            braceln)))
+
 (defn- go-call-default
     [name args]
     (if (seq args)
