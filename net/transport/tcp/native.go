@@ -262,18 +262,3 @@ func (vst *ValidRemoteEndPointState) String() string {
 }
 
 // LocalNode & LocalSwitch
-func (vst *ValidLocalNodeState) getLocalConnection(from SwitchID, to EndPointAddress) *Connection {
-	if m, ok := vst.localConnections[from]; ok {
-		return m[to]
-	}
-	return nil
-}
-
-func (vst *ValidLocalNodeState) setLocalConnection(from SwitchID, to EndPointAddress, conn *Connection) {
-	m, ok := vst.localConnections[from]
-	if !ok {
-		m = make(map[EndPointAddress]*Connection)
-		vst.localConnections[from] = m
-	}
-	m[to] = conn
-}

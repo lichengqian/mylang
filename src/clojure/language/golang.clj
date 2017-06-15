@@ -326,10 +326,6 @@
   [type [chain-and & exprs]]
   (chain-with "&&" (map emit exprs)))
 
-(defmethod emit-special [::golang 'type]
-  [_ [_ alias real-type]]
-  (str "type " (emit alias) " " (emit-type real-type) "\n\n"))
-
 (defn emit-field [name type]
   (str (emit name) " " (emit type) "\n"))
 

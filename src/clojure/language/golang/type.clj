@@ -41,3 +41,75 @@
         (string/join " ")
         (str (emit-type c) " "))))
         
+(defn- maptype? 
+  [type-exp]
+  (and 
+    (list? type-exp)
+    (= 'Map (first type-exp))))
+
+(defn- mapmaptype?
+  [type-exp]
+  (if (maptype? type-exp)
+    (maptype? (last type-exp))
+    false))
+
+(defn- emit-mapmaptype
+  [alias [_ k1 [_ k2 v]]]
+  (println alias k1 k2 v)
+  (let [str-t (str "map[" (emit-type k1) "]map[" (emit-type k2) "]" (emit-type v))
+        str-decl (str "type " (emit alias) " " str-t)
+        str-new
+          (str "func new" (emit alias) "() " (emit alias)
+            (braceln (str "return make" (paren str-t))))
+        str-get
+          (str "func "
+            (paren (str "mm " (emit alias)))
+            "get_in "
+            (paren (str "from " (emit-type k1) ", to " (emit-type k2))) (emit-type v)
+            "{
+                if m, ok := mm[from]; ok {
+                  return m[to]
+                }
+                return nil
+              }")
+        str-assoc
+          (str "func "
+            (paren (str "mm " (emit alias)))
+            "assoc_in "
+            (paren (str "from " (emit-type k1) ", to " (emit-type k2) ", v " (emit-type v)))
+            (braceln "	m, ok := mm[from]
+                if !ok {
+                  m = make(map[EndPointAddress]*Connection)
+                  mm[from] = m
+                }
+                m[to] = v
+              "))]
+            
+      (str  str-decl "\n\n"
+            str-new "\n"
+            str-get "\n"
+            str-assoc "\n")))
+  
+
+(defmethod emit-special [::golang 'type]
+  [_ [_ alias real-type]]
+  (if (mapmaptype? real-type)
+    (emit-mapmaptype alias real-type)
+    (str "type " (emit alias) " " (emit-type real-type) "\n\n")))
+
+;;; mapmap op
+(defmethod go-call 'get-in
+    [_ m ks]
+    (->> ks
+        (map emit)
+        (string/join ", ")
+        paren
+        (str (emit m) ".get_in")))
+
+(defmethod go-call 'assoc-in
+    [_ m ks v]
+    (->> (conj ks v)
+        (map emit)
+        (string/join ", ")
+        paren
+        (str (emit m) ".assoc_in")))

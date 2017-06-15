@@ -14,10 +14,12 @@
 ;     [^SwitchID from
 ;      ^EndPointAddress to])
 
+(type OutgoingConnectionMap (Map SwitchID (Map EndPointAddress *Connection)))
+
 (defrecord ValidLocalNodeState
     [^"map[SwitchID]*LocalSwitch" localSwitches
     ;; | Outgoing connections
-     ^"map[SwitchID]map[EndPointAddress]*Connection" localConnections])
+     ^OutgoingConnectionMap localConnections])
 
 (defrecord LocalSwitch
     [^SwitchID switchID
@@ -44,7 +46,7 @@
     (let 
         st (LocalNodeValid. (map->ValidLocalNodeState 
                                 {localSwitches (native "make(map[SwitchID]*LocalSwitch)")
-                                 localConnections (native "make(map[SwitchID]map[EndPointAddress]*Connection)")}))
+                                 localConnections (newOutgoingConnectionMap)}))
         node (map->LocalNode
                 {localEndPoint endpoint
                  localState (^LocalNodeState newMVar &st)})
@@ -235,7 +237,7 @@
         (lock! node.localState)
         (match node.localState.value
             [LocalNodeValid vst]
-            (vst.setLocalConnection  from to conn))
+            (assoc-in vst.localConnections [from to] conn))
         (return conn))
     (throw "conn failed"))
 
@@ -246,7 +248,7 @@
             (match node.localState.value
                 [LocalNodeValid vst]
                 (return
-                    (vst.getLocalConnection from to)))
+                    (get-in vst.localConnections [from to])))
             (return nil)))
     
     (when (nil? conn)
