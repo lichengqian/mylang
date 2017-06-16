@@ -17,7 +17,7 @@
                             (string/join ", "
                                 (map #(str "_s._" %) idx))
                             "\n")]
-        (str "case *" (str (first k) ":\n")
+        (str "case *" (str (emit (first k)) ":\n")
             assign-var
             (emit expr)))))
             

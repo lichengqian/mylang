@@ -10,10 +10,6 @@
     (LocalNodeValid ValidLocalNodeState)
     LocalNodeClosed)
 
-; (defrecord FromTo
-;     [^SwitchID from
-;      ^EndPointAddress to])
-
 (type OutgoingConnectionMap (Map SwitchID (Map EndPointAddress *Connection)))
 
 (defrecord ValidLocalNodeState
@@ -64,16 +60,21 @@
 
     (return &node))
 
+(defmacro withValidLocalNodeState! [st vst & body]
+    (let [v (symbol (str st ".value"))]
+        `(match ~v
+            [LocalNodeValid ~vst]
+            (do ~@body))))
+
 (defn newLocalSwitch ^*LocalSwitch
     [^*LocalNode localNode, ^SwitchID sid]
     (let st &localNode.localState)
     (lock! st)
-    (match st.value
-        [LocalNodeValid vst]
-        (do
-            (let localSwitch (LocalSwitch. sid localNode (^Message chan 10)))
-            (assoc vst.localSwitches sid &localSwitch)
-            (return &localSwitch)))                    
+
+    (withValidLocalNodeState! st vst
+        (let localSwitch (LocalSwitch. sid localNode (^Message chan 10)))
+        (assoc vst.localSwitches sid &localSwitch)
+        (return &localSwitch))                     
 
     ; LocalNodeClosed
     (throw "local node closed"))
@@ -82,16 +83,15 @@
     [^*LocalSwitch localSwitch]
     (let st &localSwitch.switchNode.localState)
     (lock! st)
-    (match st.value
-        [LocalNodeValid vst]
-        (do
-            (let localSwitch_ (get vst.localSwitches localSwitch.switchID))
-            (if (nil? localSwitch_)
-                (throw "local switch closed")
-                (do
-                    (dissoc vst.localSwitches localSwitch.switchID)
-                    (dissoc vst.localConnections localSwitch.switchID)
-                    (return)))))
+
+    (withValidLocalNodeState! st vst
+        (let localSwitch_ (get vst.localSwitches localSwitch.switchID))
+        (if (nil? localSwitch_)
+            (throw "local switch closed")
+            (do
+                (dissoc vst.localSwitches localSwitch.switchID)
+                (dissoc vst.localConnections localSwitch.switchID)
+                (return))))
     ; LocalNodeClosed
     (throw "local node closed"))
     
@@ -301,4 +301,3 @@
 ;;;------------------------------------------------------------------------------
 ;;; Internal data types                                                        --
 ;;;------------------------------------------------------------------------------
-

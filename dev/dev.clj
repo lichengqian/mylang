@@ -41,9 +41,6 @@
 
 (set-language :language.golang/golang)
 
-;; 相当于macro，代码中被调用后可以生成代码
-(defn prin [t] (emit `(println ~t)))
-
 (defn r []
   (sh "touch" "src/clojure/language/golang.clj")
   (reset)

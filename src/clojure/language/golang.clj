@@ -200,7 +200,7 @@
   clojure.lang.Symbol 
     (if (= 'Void expr)
       "struct{}{}"
-      (str expr))
+      (str (name expr)))
 
   clojure.lang.IPersistentVector
     (str (if *delimited-sequence* "(" "")

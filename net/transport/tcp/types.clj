@@ -93,9 +93,6 @@
     ; ProbeSocket
     ; ProbeSocketAct)
 
-(encode! ControlHeader)
-(decode! ControlHeader)
-    
 (enum ConnectionRequestResponse
     "Response sent by /B/ to /A/ when /A/ tries to connect"
     ConnectionRequestAccepted
@@ -103,14 +100,17 @@
     ConnectionRequestCrossed
     ConnectionRequestHostMismatch)
 
-(encode! ConnectionRequestResponse)
-(decode! ConnectionRequestResponse)
-
 (deferr
     TransportClosed "Transport closed"
     EndPointClosed  "EndPoint closed"
     ConnectionClosed "Connection closed")
     
+(defmacro message! [n]
+    `(do (encode! ~n)
+         (decode! ~n)))
+
+(message! ControlHeader)
+(message! ConnectionRequestResponse)
 ; (native :golang " 
 ; type test string
 ;     ")
