@@ -11,7 +11,7 @@
     (-> path
         slurp
         (#(str "[" % "\n]"))    ; 最外层包一个中括号，可以解析为一个edn vector，回车是为了防止文件最后一行有注释!
-        edn/read-string))
+        read-string))
 
 (defn output-with-context [content]
     ; (println *compiler-context*)
