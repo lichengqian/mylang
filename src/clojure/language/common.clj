@@ -193,9 +193,9 @@
                     (symbol (name fn-name-or-map)) args)
                 (apply emit-function-call
                     fn-name-or-map args))]
-        (if (string? _result)
-          _result
-          (emit _result))))))
+        (cond 
+          (string? _result) _result
+          :else (emit _result))))))
 
 (defn- emit-s-expr [expr]
   (if (symbol? (first expr))
@@ -244,6 +244,9 @@
 
 (defmethod emit [::common-impl clojure.lang.PersistentList] [expr]
   (emit-s-expr expr))
+
+(defmethod emit [::common-impl clojure.lang.LazySeq] [exprs]
+  (emit-do exprs))
 
 (defmethod emit [::common-impl clojure.lang.Cons]
   [expr]

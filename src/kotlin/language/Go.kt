@@ -151,26 +151,5 @@ data class Golang(val emit: IFn, val emitType: IFn, val goImport: IFn) {
         newline()
     }
 
-    fun macro_encode(name: Any, fields: Iterable<Any>) = 
-        render {
-            "func encode$name(n $name) uint8".brace {
-                +"return n.tag$name()"
-            }
-        }
-
-    fun macro_decode(name: Any, fields: Iterable<Any>) = 
-        render {
-            "func decode$name(tag uint8) $name".brace {
-                "switch tag ".brace {
-                    var i = 0
-                    for (field in fields) {
-                        +"case $i: return $field{}"
-                        i++
-                    }
-                    +"default: return nil"
-                }
-            }
-        }
-
 }
 

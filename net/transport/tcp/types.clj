@@ -105,12 +105,29 @@
     EndPointClosed  "EndPoint closed"
     ConnectionClosed "Connection closed")
     
-(defmacro message! [n]
-    `(do (encode! ~n)
-         (decode! ~n)))
+(defmacro encode! [n]
+    (str "func encode" n
+        (paren (str "n " n))
+        " uint8"
+        (brace
+            (str "return n.tag" n "()"))))
 
-(message! ControlHeader)
-(message! ConnectionRequestResponse)
+(defmacro decode! [n]
+    (let [_cases (->> (get-enum n)
+                      (map #(str "case " %1 ": return " %2 "{}\n") (range))
+                      (string/join))]
+        (str "func decode" n "(tag uint8)" n
+            (brace
+                (str "switch tag"
+                    (brace
+                        (str _cases "default: return nil")))))))
+
+(defmacro message! [& names]
+    (for [n names]
+        `(do (encode! ~n)
+            (decode! ~n))))
+
+(message! ControlHeader ConnectionRequestResponse)
 ; (native :golang " 
 ; type test string
 ;     ")
