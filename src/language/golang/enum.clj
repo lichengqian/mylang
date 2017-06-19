@@ -1,10 +1,8 @@
 (in-ns 'language.golang)
 
 (defn- decl-interface [name]
-    (->> (str "tag" name "() uint8\n"
-            "String() string\n")
-        brace
-        (str "type " name " interface")))
+    (cl-format nil "type ~A interface {~%tag~A() uint8~%String() string~%} "
+        name name))
 
 (defmethod emit-enum ::golang 
   [name doc? enums]

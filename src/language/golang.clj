@@ -2,6 +2,7 @@
   (:require [pallet.common.resource :as resource]
             [pallet.common.string :as common-string]
             [clojure.string :as string]
+            [clojure.pprint :refer [cl-format]]
             [clojure.java.io :as io]
             [clojure.walk :refer [prewalk]])
   (:use
