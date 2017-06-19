@@ -112,7 +112,9 @@
 
 (defemit-special ::golang
   'ns [path] (set-ns (emit path))
-  'import [path] (add-import path)
+  'import [& paths] 
+  (doseq [path paths]
+      (add-import path))
   'not [expr] (str "!(" (emit expr) ")"))
 
 (defn- emit-monad-binding

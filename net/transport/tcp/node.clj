@@ -1,6 +1,7 @@
 
 (import
-    "gitlab.zhonganonline.com/ann/ann-module/lib/go-crypto")
+    "gitlab.zhonganonline.com/ann/ann-module/lib/go-crypto"
+    "gitlab.zhonganonline.com/ann/ann-module/lib/go-config")
 
 (type SwitchID UInt64)
 
@@ -8,6 +9,8 @@
     localEndPoint *EndPoint
     localState  (MVar LocalNodeState)
     localCtrlChan (Chan NCMsg)
+    
+    config config.Config
     ;; our node privkey
     ^:setter nodePrivKey  crypto.PrivKeyEd25519)
 
