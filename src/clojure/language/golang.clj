@@ -14,8 +14,6 @@
 
 (derive ::golang :language.common/common-impl)
 
-(def ^:private golang (Golang. emit emit-type add-import))
-
 ;;; * Keyword and Operator Classes
 (def infix-operators
   ^{:doc "Operators that should be converted to infix in expressions."
@@ -349,14 +347,12 @@
   (assert (symbol? name))
   (str 
     (emit-doc doc?)
-    (.emitStruct golang name fields)))
-
-(defmethod emit-enum ::golang 
-  [name doc? enums]
-  (assert (symbol? name))
-  (str 
-    (emit-doc doc?)
-    (.emitEnum golang name enums)))
+    (str "type " name " struct"
+        (->> (partition 2 fields)
+            (map (fn [[v t]]
+                    (str v " " (emit-type t) "\n")))
+            string/join
+            braceln))))
 
 (defn- typeof [v]
   (:tag (meta v)))
@@ -468,6 +464,7 @@
 (defmulti go-call
     (fn [f & args] (simple-symbol f)))
 
+(load "golang/enum")
 (load "golang/call")
 (load "golang/async")
 (load "golang/type")
