@@ -9,8 +9,7 @@
    [mylang]
     ; :only [emit emit-do special-forms splice-seq with-source-line-comments]
     
-   [pallet.common.string :only [quoted substring underscore]])
-  (:import language.Golang))
+   [pallet.common.string :only [quoted substring underscore]]))
 
 (derive ::golang :language.common/common-impl)
 
@@ -24,7 +23,7 @@
 (def arithmetic-operators
   ^{:doc "Operators that should be converted to infix in expressions."
     :private true}
-  #{'+ '- '/ '* '%})
+  #{'+ '- '/ '* '%}) 
 
 (def logical-operators
   ^{:doc "Logical operators for test expressions."
@@ -342,18 +341,6 @@
          (map #(str "// " % "\n"))
          string/join)))
         
-(defmethod emit-struct ::golang
-  [name doc? fields]
-  (assert (symbol? name))
-  (str 
-    (emit-doc doc?)
-    (str "type " name " struct"
-        (->> (partition 2 fields)
-            (map (fn [[v t]]
-                    (str v " " (emit-type t) "\n")))
-            string/join
-            braceln))))
-
 (defn- typeof [v]
   (:tag (meta v)))
 
@@ -464,6 +451,7 @@
 (defmulti go-call
     (fn [f & args] (simple-symbol f)))
 
+(load "golang/struct")
 (load "golang/enum")
 (load "golang/call")
 (load "golang/async")

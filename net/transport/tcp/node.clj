@@ -1,10 +1,15 @@
 
+(import
+    "gitlab.zhonganonline.com/ann/ann-module/lib/go-crypto")
+
 (type SwitchID UInt64)
 
 (struct LocalNode
     localEndPoint *EndPoint
     localState  (MVar LocalNodeState)
-    localCtrlChan (Chan NCMsg))
+    localCtrlChan (Chan NCMsg)
+    ;; our node privkey
+    ^:setter nodePrivKey  crypto.PrivKeyEd25519)
 
 (enum LocalNodeState
     (LocalNodeValid ValidLocalNodeState)
