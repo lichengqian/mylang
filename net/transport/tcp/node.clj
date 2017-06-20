@@ -1,19 +1,11 @@
 
-; (import
-;     "gitlab.zhonganonline.com/ann/ann-module/lib/go-crypto"
-;     "gitlab.zhonganonline.com/ann/ann-module/lib/go-config")
 
 (type SwitchID UInt64)
 
 (struct LocalNode
     localEndPoint *EndPoint
     localState  (MVar LocalNodeState)
-    localCtrlChan (Chan NCMsg)
-    
-    internal "interface{}")
-    ; config config.Config
-    ;; our node privkey
-    ; ^:setter nodePrivKey  crypto.PrivKeyEd25519) 
+    localCtrlChan (Chan NCMsg))
 
 (enum LocalNodeState
     (LocalNodeValid ValidLocalNodeState)
@@ -29,8 +21,7 @@
 (defrecord LocalSwitch
     [^SwitchID switchID
      ^*LocalNode switchNode
-     ^"chan Message" switchQueue
-     ^"interface{}" internal])
+     ^"chan Message" switchQueue])
     ; switchState (MVar LocalSwitchState))
 
 ; (struct LocalSwitchState
@@ -43,7 +34,7 @@
     [^EndPointAddress msgFrom
      ^ByteString msgPayload])
 
-(defn newLocalNode ^*LocalNode [^*Transport transport, ^"interface{}" internal]
+(defn NewLocalNode ^*LocalNode [^*Transport transport]
     (<- endpoint (transport.NewEndPoint 0))
     (let 
         st (LocalNodeValid. (map->ValidLocalNodeState 
@@ -51,8 +42,7 @@
                                  localConnections (newOutgoingConnectionMap)}))
         node (map->LocalNode
                 {localEndPoint endpoint
-                 localState (^LocalNodeState newMVar &st)
-                 internal internal})
+                 localState (^LocalNodeState newMVar &st)})
 
         stopNC  (fn []
                     (>! node.localCtrlChan (NCMsg. (node.localEndPoint.Address) (SigShutdown.)))))
@@ -73,22 +63,21 @@
             [LocalNodeValid ~vst]
             (do ~@body))))
 
-(defn newLocalSwitch ^*LocalSwitch
-    [^*LocalNode localNode, ^SwitchID sid, ^"interface{}" internal]
+(defn NewLocalSwitch ^*LocalSwitch
+    [^*LocalNode localNode, ^SwitchID sid]
     (let st &localNode.localState)
     (lock! st)
 
     (withValidLocalNodeState! st vst
         (let localSwitch (LocalSwitch. sid localNode 
-                            (^Message chan 10)
-                            internal))
+                            (^Message chan 10)))
         (assoc vst.localSwitches sid &localSwitch)
         (return &localSwitch))                     
 
     ; LocalNodeClosed
     (throw "local node closed"))
 
-(defn closeLocalSwitch
+(defn CloseLocalSwitch
     [^*LocalSwitch localSwitch]
     (let st &localSwitch.switchNode.localState)
     (lock! st)
@@ -224,7 +213,7 @@
 ;;; Message sending                                                            --
 ;;;------------------------------------------------------------------------------
 
-(defn sendPayload
+(defn SendPayload
     [^*LocalSwitch localSwitch ^EndPointAddress to ^ByteString payload]
     (let node localSwitch.switchNode)
     (<- conn (connBetween node localSwitch.switchID to))
