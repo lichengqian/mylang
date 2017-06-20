@@ -1,7 +1,7 @@
 
-(import
-    "gitlab.zhonganonline.com/ann/ann-module/lib/go-crypto"
-    "gitlab.zhonganonline.com/ann/ann-module/lib/go-config")
+; (import
+;     "gitlab.zhonganonline.com/ann/ann-module/lib/go-crypto"
+;     "gitlab.zhonganonline.com/ann/ann-module/lib/go-config")
 
 (type SwitchID UInt64)
 
@@ -10,9 +10,10 @@
     localState  (MVar LocalNodeState)
     localCtrlChan (Chan NCMsg)
     
-    config config.Config
+    internal "interface{}")
+    ; config config.Config
     ;; our node privkey
-    ^:setter nodePrivKey  crypto.PrivKeyEd25519)
+    ; ^:setter nodePrivKey  crypto.PrivKeyEd25519) 
 
 (enum LocalNodeState
     (LocalNodeValid ValidLocalNodeState)
@@ -28,7 +29,8 @@
 (defrecord LocalSwitch
     [^SwitchID switchID
      ^*LocalNode switchNode
-     ^"chan Message" switchQueue])
+     ^"chan Message" switchQueue
+     ^"interface{}" internal])
     ; switchState (MVar LocalSwitchState))
 
 ; (struct LocalSwitchState
@@ -41,19 +43,16 @@
     [^EndPointAddress msgFrom
      ^ByteString msgPayload])
 
-(defn newLocalNode ^*LocalNode [^*Transport transport]
+(defn newLocalNode ^*LocalNode [^*Transport transport, ^"interface{}" internal]
     (<- endpoint (transport.NewEndPoint 0))
-    (let localNode (createBareLocalNode endpoint))
-    (return localNode))
-
-(defn createBareLocalNode ^*LocalNode [^*EndPoint endpoint]
     (let 
         st (LocalNodeValid. (map->ValidLocalNodeState 
                                 {localSwitches (native "make(map[SwitchID]*LocalSwitch)")
                                  localConnections (newOutgoingConnectionMap)}))
         node (map->LocalNode
                 {localEndPoint endpoint
-                 localState (^LocalNodeState newMVar &st)})
+                 localState (^LocalNodeState newMVar &st)
+                 internal internal})
 
         stopNC  (fn []
                     (>! node.localCtrlChan (NCMsg. (node.localEndPoint.Address) (SigShutdown.)))))
@@ -75,12 +74,14 @@
             (do ~@body))))
 
 (defn newLocalSwitch ^*LocalSwitch
-    [^*LocalNode localNode, ^SwitchID sid]
+    [^*LocalNode localNode, ^SwitchID sid, ^"interface{}" internal]
     (let st &localNode.localState)
     (lock! st)
 
     (withValidLocalNodeState! st vst
-        (let localSwitch (LocalSwitch. sid localNode (^Message chan 10)))
+        (let localSwitch (LocalSwitch. sid localNode 
+                            (^Message chan 10)
+                            internal))
         (assoc vst.localSwitches sid &localSwitch)
         (return &localSwitch))                     
 

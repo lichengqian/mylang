@@ -61,25 +61,3 @@ func (transport *TCPTransport) ToTransport() *Transport {
 func (addr EndPointAddress) String() string {
 	return fmt.Sprintf("%s:%d", addr.TransportAddr, addr.epid)
 }
-
-// LocalNode / LocalSwitch interface
-
-func (transport *Transport) NewLocalNode() (*LocalNode, error) {
-	return newLocalNode(transport)
-}
-
-func (localNode *LocalNode) NewLocalSwitch(sid SwitchID) (*LocalSwitch, error) {
-	return newLocalSwitch(localNode, sid)
-}
-
-func (localSwitch *LocalSwitch) Receive() Message {
-	return <-localSwitch.switchQueue
-}
-
-func (localSwitch *LocalSwitch) SendPayload(to EndPointAddress, payload []byte) error {
-	return sendPayload(localSwitch, to, payload)
-}
-
-func (localSwitch *LocalSwitch) Close() error {
-	return closeLocalSwitch(localSwitch)
-}
