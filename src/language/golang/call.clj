@@ -78,7 +78,7 @@
             (map emit)
             (string/join ", ")
             brace
-            (str (substring (str name) 0 (- (count (str name)) 1))))
+            (str (.substring (str name) 0 (- (count (str name)) 1))))
 
         (string/starts-with? (str name) "map->")  ; struct constructor 
         (do
@@ -87,7 +87,7 @@
                 (map (fn [[k v]] (str (emit k) ": " (emit v) ",\n")))
                 string/join
                 braceln
-                (str (substring (str name) 5))))
+                (str (.substring (str name) 5))))
             
         :else
         (apply go-call name args))

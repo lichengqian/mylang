@@ -9,10 +9,8 @@
    [clojure.java.io :as io]
    [clojure.set :refer [union]]
    [clojure.string :as string]
-   [clojure.tools.logging :refer [tracef]]
+   [clojure.tools.logging :refer [tracef]]))
   ;  [clojure.walk :as walk]
-   [pallet.common.deprecate :as deprecate]
-   [pallet.common.string :refer [underscore]]))
    
 
 (declare ^{:dynamic true} *script-language*)
@@ -422,45 +420,6 @@
                       (script-location-comment m))
                     s))))]
     code))
-
-;;; Script argument helpers
-;;; TODO eliminate the need for this to be public by supporting literal maps for
-;;; expansion
-(defn arg-string
-  [option argument do-underscore do-assign dash]
-  (let [opt (if do-underscore (underscore (name option)) (name option))]
-    (if argument
-      (if (> (.length opt) 1)
-        (if (vector? argument)
-          (string/join
-           " "
-           (map #(str dash opt (str (if do-assign "=" " ") \" % \")) argument))
-          (str dash opt (if-not (= argument true)
-                          (str (if do-assign "=" " ") \" argument \"))))
-        (if (vector? argument)
-          (string/join
-           " "
-           (map #(str "-" opt (str " " \" % \")) argument))
-          (str "-" opt (if-not (= argument true) (str " " \" argument \"))))))))
-
-(defn map-to-arg-string
-  "Output a set of command line switches from a map"
-  [m & {:keys [underscore assign dash] :or {dash "--"}}]
-  {:pre [(or (nil? m) (map? m))]}
-  (apply
-   str (interpose
-        " "
-        (map
-          #(arg-string (key %) (val %) underscore assign dash)
-          (filter val m)))))
-
-(defn option-args
-  "Output a set of command line switches from a sequence of options"
-  [{:as m}]
-  (let [assign (:assign m)
-        underscore (:underscore m)]
-    (map-to-arg-string
-     (dissoc m :assign :underscore) :assign assign :underscore underscore)))
 
 ;; -- common helper functions
 (defn set-ns [s]

@@ -1,16 +1,14 @@
 (ns language.golang
-  (:require [pallet.common.resource :as resource]
-            [pallet.common.string :as common-string]
+  (:require
             [clojure.string :as string]
             [clojure.pprint :refer [cl-format]]
             [clojure.java.io :as io]
             [clojure.walk :refer [prewalk]])
   (:use
    [language.common]
-   [mylang]
+   [mylang]))
     ; :only [emit emit-do special-forms splice-seq with-source-line-comments]
     
-   [pallet.common.string :only [quoted substring underscore]]))
 
 (derive ::golang :language.common/common-impl)
 
@@ -105,8 +103,7 @@
   (when (< (count args) 2)
     (throw (Exception. "Less than 2 infix arguments not supported yet.")))
   
-  (let [[open close] ["(" ")"]
-        quoting (if (quoted-operator? operator) quoted identity)]
+  (let [[open close] ["(" ")"]]
     (str open (emit (first args)) " "
         (get infix-conversions operator operator)
         " " (emit (second args)) close)))
@@ -177,16 +174,15 @@
 (defmethod emit-special [::golang 'str] [type [str & args]]
   (apply clojure.core/str (map emit args)))
 
-(defmethod emit-special [::golang 'quoted] [type [quoted & args]]
-  (common-string/quoted (string/join " " (map emit args))))
-
 (defmethod emit-special [::golang 'println] [type [println & args]]
   (add-import "fmt")
-  (str "fmt.Println(" (string/join ", " (map emit args)) ")"))
+  (cl-format nil "fmt.Println(~{~A~^, ~})"
+    (map emit args)))
 
 (defmethod emit-special [::golang 'print] [type [print & args]]
   (add-import "fmt")
-  (str "fmt.Print(" (string/join ", " (map emit args)) ")"))
+  (cl-format nil "fmt.Print(~{~A~^, ~})"
+    (map emit args)))
 
 (defemit ::golang expr
   nil "nil"
@@ -252,10 +248,6 @@
        (braceln (emit-do forms))
        "\n"))
        
-(defmethod emit-special [::golang 'dot-method] [type [method obj & args]]
-  (let [method (symbol (substring (str method) 1))]
-    (emit-method obj method args)))
-
 (defmethod emit-special [::golang 'set!] [type [set! var val]]
   (str (check-symbol (emit var)) "=" (emit val)))
 
@@ -339,10 +331,8 @@
 
 (defn emit-doc [doc]
   (when doc
-    (->> doc
-         string/split-lines
-         (map #(str "// " % "\n"))
-         string/join)))
+    (cl-format nil "~{// ~A~%~}"
+      (string/split-lines doc))))
         
 (defn- typeof [v]
   (:tag (meta v)))
@@ -374,11 +364,7 @@
 (defmethod emit-special [::golang 'deferr]
   [_ [_ & body]]
   (add-import "errors")
-  (->> (partition 2 body)
-       (map (fn [[k v]] (str "Err" (name k) " = errors.New(" (emit v) ")")))
-       (string/join "\n")
-       paren
-       (str "var ")))
+  (cl-format nil "var (~%~{Err~A = errors.New(~S)~%~})~%" body))
 
 (defmethod emit-special [::golang 'deftest]
   [_ [_ n & body]]
@@ -411,11 +397,7 @@
 
 (defmethod emit-import ::golang
     [imports]
-    (->> imports
-        (map emit)
-        (string/join "\n")
-        paren
-        (str "import ")))
+    (cl-format nil "import (~% ~{~S~%~})~%" imports))
 
 ;;; loop / recur support
 (def ^:dynamic *recur* nil)
