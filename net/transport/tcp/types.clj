@@ -106,18 +106,12 @@
     ConnectionClosed "Connection closed")
     
 (defmacro encode! [n]
-    (cl-format nil "func encode~A(n ~A) uint8 {~% return n.tag~A() ~%}"
+    (cl-format nil "func encode~A(n ~A) uint8 { return n.tag~A() }"
         n n n))
 
 (defmacro decode! [n]
-    (let [_cases (->> (get-enum n)
-                      (map #(str "case " %1 ": return " %2 "{}\n") (range))
-                      (string/join))]
-        (str "func decode" n "(tag uint8)" n
-            (brace
-                (str "switch tag"
-                    (brace
-                        (str _cases "default: return nil")))))))
+    (cl-format nil "func decode~A(tag uint8) ~A {~% switch tag { ~{case ~D: return ~A{}~%~} default: return nil~% }~%}" 
+        n n (interleave (range) (get-enum n))))
 
 (defmacro message! [& names]
     (for [n names]
