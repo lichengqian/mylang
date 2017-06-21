@@ -213,6 +213,12 @@
 ;;; Message sending                                                            --
 ;;;------------------------------------------------------------------------------
 
+(defn DialTo
+    [^*LocalSwitch localSwitch, ^EndPointAddress to]
+    (let node localSwitch.switchNode)
+    (<- _ (connBetween node localSwitch.switchID to))
+    (return))
+
 (defn SendPayload
     [^*LocalSwitch localSwitch ^EndPointAddress to ^ByteString payload]
     (let node localSwitch.switchNode)
