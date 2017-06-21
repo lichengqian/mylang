@@ -1022,7 +1022,7 @@ func (transport *TCPTransport) removeLocalEndPoint(ourEndPoint *LocalEndPoint) {
 	state.Lock()
 	defer state.Unlock()
 
-	epid := ourEndPoint.localAddress.epid
+	epid := ourEndPoint.localAddress.EndPointId
 	endpoints := state.value.(*TransPortValid)._1._localEndPoints
 	if _, ok := endpoints[epid]; ok {
 		delete(endpoints, epid)
@@ -1084,7 +1084,7 @@ func (transport *TCPTransport) internalSocketBetween(ourAddress EndPointAddress,
 		switch st := s.value.(type) {
 		case *TransPortValid:
 			vst := &st._1
-			if ep, ok := vst._localEndPoints[ourAddress.epid]; ok {
+			if ep, ok := vst._localEndPoints[ourAddress.EndPointId]; ok {
 				return ep, nil
 			} else {
 				return nil, errors.New("Local endpoint not found")

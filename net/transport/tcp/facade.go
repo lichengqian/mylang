@@ -4,14 +4,12 @@ import (
 	"fmt"
 )
 
-type TransportAddr string
-
 type EndPointAddress struct {
 	TransportAddr
-	epid EndPointId
+	EndPointId
 }
 
-func newEndPointAddress(lAddr string, ep int) EndPointAddress {
+func NewEndPointAddress(lAddr string, ep int) EndPointAddress {
 	return EndPointAddress{TransportAddr(lAddr), EndPointId(ep)}
 }
 
@@ -59,5 +57,5 @@ func (transport *TCPTransport) ToTransport() *Transport {
 }
 
 func (addr EndPointAddress) String() string {
-	return fmt.Sprintf("%s:%d", addr.TransportAddr, addr.epid)
+	return fmt.Sprintf("%s:%d", addr.TransportAddr, addr.EndPointId)
 }

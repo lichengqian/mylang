@@ -161,15 +161,15 @@
     (<- ep (tp.NewEndPoint 1000))
 
     ;; Syntax connect, but invalid hostname (TCP address lookup failure)
-    (let [conn2, err] (ep.Dial (newEndPointAddress "invalidAddress", 0)))
+    (let [conn2, err] (ep.Dial (NewEndPointAddress "invalidAddress", 0)))
     (println conn2 err)
 
     ;; TCP address correct, but nobody home at that address
-    (let [conn3, err] (ep.Dial (newEndPointAddress "127.0.0.1:9000", 0)))
+    (let [conn3, err] (ep.Dial (NewEndPointAddress "127.0.0.1:9000", 0)))
     (println conn3 err)
 
     ;; Valid TCP address but invalid endpoint number
-    (let [conn4, err] (ep.Dial (newEndPointAddress "127.0.0.1:9999", 900)))
+    (let [conn4, err] (ep.Dial (NewEndPointAddress "127.0.0.1:9999", 900)))
     (println conn4 err))
 
 ;;; | Test that an endpoint can ignore CloseSocket requests (in "reality" this)
@@ -355,7 +355,7 @@
 
     (go
         ;; We pick an address < 128.0.0.1 so that this is not rejected purely because of the "crossed" check
-        (let ourAddress (newEndPointAddress "127.0.0.1:8888" 1000))
+        (let ourAddress (NewEndPointAddress "127.0.0.1:8888" 1000))
 
         ;; We should only get a single 'Accepted' reply
         (let gotAccepted (newNotifier)
@@ -445,7 +445,7 @@
     ;; A nefarious client which connects to the server then stops responding.
     (go
         (let 
-            ourAddr (newEndPointAddress "127.0.0.1:8888" 100)
+            ourAddr (NewEndPointAddress "127.0.0.1:8888" 100)
             theirAddr (<! serverAddr))
         (<- sock (socketToEndPoint_ ourAddr theirAddr))
         (sendCreateNewConnection 1024 sock)

@@ -178,7 +178,7 @@ func socketToEndPoint(ourAddress EndPointAddress, theirAddress EndPointAddress) 
 	}
 
 	//TODO:1663
-	WriteUint32(uint32(theirAddress.epid), sock)
+	WriteUint32(uint32(theirAddress.EndPointId), sock)
 	//write our address
 	WriteWithLen(encodeEndPointAddress(ourAddress), sock)
 	response, err := ReadUint32(sock)
