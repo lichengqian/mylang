@@ -1,6 +1,6 @@
 
 
-(type SwitchID UInt64)
+(type ChannelID UInt64)
 
 (struct LocalNode
     localEndPoint *EndPoint
@@ -11,17 +11,17 @@
     (LocalNodeValid ValidLocalNodeState)
     LocalNodeClosed)
 
-(type OutgoingConnectionMap (Map SwitchID (Map EndPointAddress *Connection)))
+(type OutgoingConnectionMap (Map ChannelID (Map EndPointAddress *Connection)))
 
 (defrecord ValidLocalNodeState
-    [^"map[SwitchID]*LocalSwitch" localSwitches
+    [^"map[ChannelID]*LocalChannel" localSwitches
     ;; | Outgoing connections
      ^OutgoingConnectionMap localConnections])
 
-(defrecord LocalSwitch
-    [^SwitchID switchID
-     ^*LocalNode switchNode
-     ^"chan Message" switchQueue])
+(defrecord LocalChannel
+    [^ChannelID channelID
+     ^*LocalNode localNode
+     ^"chan Message" Queue])
     ; switchState (MVar LocalSwitchState))
 
 ; (struct LocalSwitchState
@@ -31,14 +31,14 @@
 ;;; Messages                                                                   --
 ;;;------------------------------------------------------------------------------
 (defrecord Message
-    [^EndPointAddress msgFrom
-     ^ByteString msgPayload])
+    [^EndPointAddress From
+     ^ByteString Payload])
 
 (defn NewLocalNode ^*LocalNode [^*Transport transport]
     (<- endpoint (transport.NewEndPoint 0))
     (let 
         st (LocalNodeValid. (map->ValidLocalNodeState 
-                                {localSwitches (native "make(map[SwitchID]*LocalSwitch)")
+                                {localSwitches (native "make(map[ChannelID]*LocalChannel)")
                                  localConnections (newOutgoingConnectionMap)}))
         node (map->LocalNode
                 {localEndPoint endpoint
@@ -63,32 +63,32 @@
             [LocalNodeValid ~vst]
             (do ~@body))))
 
-(defn NewLocalSwitch ^*LocalSwitch
-    [^*LocalNode localNode, ^SwitchID sid]
+(defn NewLocalChannel ^*LocalChannel
+    [^*LocalNode localNode, ^ChannelID sid]
     (let st &localNode.localState)
     (lock! st)
 
     (withValidLocalNodeState! st vst
-        (let localSwitch (LocalSwitch. sid localNode 
+        (let localChannel (LocalChannel. sid localNode 
                             (^Message chan 10)))
-        (assoc vst.localSwitches sid &localSwitch)
-        (return &localSwitch))                     
+        (assoc vst.localSwitches sid &localChannel)
+        (return &localChannel))                     
 
     ; LocalNodeClosed
     (throw "local node closed"))
 
-(defn CloseLocalSwitch
-    [^*LocalSwitch localSwitch]
-    (let st &localSwitch.switchNode.localState)
+(defn CloseLocalChannel
+    [^*LocalChannel localChannel]
+    (let st &localChannel.localNode.localState)
     (lock! st)
 
     (withValidLocalNodeState! st vst
-        (let localSwitch_ (get vst.localSwitches localSwitch.switchID))
+        (let localSwitch_ (get vst.localSwitches localChannel.channelID))
         (if (nil? localSwitch_)
             (throw "local switch closed")
             (do
-                (dissoc vst.localSwitches localSwitch.switchID)
-                (dissoc vst.localConnections localSwitch.switchID)
+                (dissoc vst.localSwitches localChannel.channelID)
+                (dissoc vst.localConnections localChannel.channelID)
                 (return))))
     ; LocalNodeClosed
     (throw "local node closed"))
@@ -103,7 +103,7 @@
 
 (enum IncomingTarget
     Uninit
-    (ToSwitch *LocalSwitch)
+    (ToChannel *LocalChannel)
     ToNode)
 
 (type IncomingConnectionMap (Map EndPointAddress (Set ConnectionId)))
@@ -151,9 +151,9 @@
                     Uninit
                     (do
                         (let 
-                            switchid (decodeSwitchID payload)
+                            switchid (decodeChannelID payload)
                             nst &localNode.localState
-                            pSwitch (^*LocalSwitch withMVar nst 
+                            pSwitch (^*LocalChannel withMVar nst 
                                         (match nst.value
                                             [LocalNodeValid vst]
                                             (return (get vst.localSwitches switchid)))
@@ -163,12 +163,12 @@
                         
                         (if (nil? pSwitch)
                             (dissoc  st.incoming cid)
-                            (assoc st.incoming cid (&IncomingConnection. pConn.theirAddress (&ToSwitch. pSwitch)))))
+                            (assoc st.incoming cid (&IncomingConnection. pConn.theirAddress (&ToChannel. pSwitch)))))
 
-                    [ToSwitch pSwitch]
+                    [ToChannel pSwitch]
                     (do
-                        (println pSwitch.switchID payload)
-                        (>! pSwitch.switchQueue 
+                        (println pSwitch.channelID payload)
+                        (>! pSwitch.Queue 
                             (Message. pConn.theirAddress payload))))))
 
         onErrorEvent
@@ -214,24 +214,24 @@
 ;;;------------------------------------------------------------------------------
 
 (defn DialTo
-    [^*LocalSwitch localSwitch, ^EndPointAddress to]
-    (let node localSwitch.switchNode)
-    (<- _ (connBetween node localSwitch.switchID to))
+    [^*LocalChannel localChannel, ^EndPointAddress to]
+    (let node localChannel.localNode)
+    (<- _ (connBetween node localChannel.channelID to))
     (return))
 
 (defn SendPayload
-    [^*LocalSwitch localSwitch ^EndPointAddress to ^ByteString payload]
-    (let node localSwitch.switchNode)
-    (<- conn (connBetween node localSwitch.switchID to))
+    [^*LocalChannel LocalChannel ^EndPointAddress to ^ByteString payload]
+    (let node LocalChannel.localNode)
+    (<- conn (connBetween node LocalChannel.channelID to))
     (<- bytes (conn.Send payload))
     (println bytes)
     (>! node.localCtrlChan (NCMsg. to (&Died. to (DiedDisconnect.))))
     (return))
 
 (defn setupConnBetween ^*Connection
-    [^*LocalNode node ^SwitchID from ^EndPointAddress to]
+    [^*LocalNode node ^ChannelID from ^EndPointAddress to]
     (<- conn (node.localEndPoint.Dial to))
-    (<- nbytes (conn.Write (encodeSwitchID from)))
+    (<- nbytes (conn.Write (encodeChannelID from)))
     (when (== nbytes 8)
         (lock! node.localState)
         (match node.localState.value
@@ -241,7 +241,7 @@
     (throw "conn failed"))
 
 (defn connBetween ^*Connection
-    [^*LocalNode node ^SwitchID from ^EndPointAddress to]
+    [^*LocalNode node ^ChannelID from ^EndPointAddress to]
     (let conn 
         (^*Connection withMVar node.localState
             (match node.localState.value
@@ -279,7 +279,7 @@
 ;;; | Signals to the node controller (see 'NCMsg')
 (enum Signal
     (Died Identifier DiedReason)
-    (Kill SwitchID String)
+    (Kill ChannelID String)
     SigShutdown)
 
 ;;;------------------------------------------------------------------------------

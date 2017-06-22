@@ -100,14 +100,14 @@ func ReadUint32(r io.Reader) (uint32, error) {
 	return uint32(binary.BigEndian.Uint32(buf[:])), nil
 }
 
-func encodeSwitchID(sid SwitchID) []byte {
+func encodeChannelID(sid ChannelID) []byte {
 	var buf [8]byte
 	binary.BigEndian.PutUint64(buf[:], uint64(sid))
 	return buf[:]
 }
 
-func decodeSwitchID(b []byte) SwitchID {
-	return SwitchID(binary.BigEndian.Uint64(b))
+func decodeChannelID(b []byte) ChannelID {
+	return ChannelID(binary.BigEndian.Uint64(b))
 }
 
 func ReadUint64(r io.Reader) (uint64, error) {
