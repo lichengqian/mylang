@@ -71,8 +71,10 @@
     (withValidLocalNodeState! st vst
         (let localChannel (LocalChannel. sid localNode 
                             (^Message chan 10)))
-        (assoc vst.localSwitches sid &localChannel)
-        (return &localChannel))                     
+        (when (== nil (get vst.localSwitches sid))
+            (assoc vst.localSwitches sid &localChannel)
+            (return &localChannel))                     
+        (throw (str "local channel exist!" sid)))
 
     ; LocalNodeClosed
     (throw "local node closed"))
