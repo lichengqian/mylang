@@ -347,7 +347,7 @@
         (string/join ","
             (for [v var]
               (str v)))
-        (str var)))
+        (emit var)))
 
 (defn- emit-let [body]
   (string/join "\n"

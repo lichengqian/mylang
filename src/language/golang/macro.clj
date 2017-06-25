@@ -22,8 +22,9 @@
           (match ~mv ~@body))))
 
 (defmethod emit-macro-call [::golang 'lock!]
-  [_ v]
-  (let [_lock (str v ".Lock()")
+  [_ vv]
+  (let [v (emit vv)
+        _lock (str v ".Lock()")
         _unlock (str "defer " v ".Unlock()")]
       `(native ~_lock ~_unlock)))
 

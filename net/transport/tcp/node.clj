@@ -18,18 +18,18 @@
     ;; | Outgoing connections
      ^OutgoingConnectionMap localConnections])
 
-(defmacro withValidLocalNodeState! [st vst & body]
-    (let [v (symbol (str st ".value"))]
+(defmacro withValidLocalNodeState! [node vst & body]
+    (let [st (symbol (str "&" node ".localState"))
+          v (symbol "st.value")]
         `(do
-            (lock! ~st)
+            (let st ~st)
+            (lock! st)
             (match ~v
                 [LocalNodeValid ~vst]
                 (do ~@body)))))
 
 (defn getLocalChannel ^*LocalChannel [^*LocalNode localNode, ^ChannelID chanID]
-    (let nst &localNode.localState)
-
-    (withValidLocalNodeState! nst vst
+    (withValidLocalNodeState! localNode vst
         (return (get vst.localSwitches chanID)))
 
         ; LocalNodeClosed
@@ -37,9 +37,7 @@
 
 (defn getLocalConnection ^*Connection
     [^*LocalNode localNode ^ChannelID from ^EndPointAddress to]
-    (let nst &localNode.localState)
-
-    (withValidLocalNodeState! nst vst
+    (withValidLocalNodeState! localNode vst
         (return
             (get-in vst.localConnections [from to])))
     
@@ -86,9 +84,8 @@
 
 (defn NewLocalChannel ^*LocalChannel
     [^*LocalNode localNode, ^ChannelID sid]
-    (let st &localNode.localState)
 
-    (withValidLocalNodeState! st vst
+    (withValidLocalNodeState! localNode vst
         (let localChannel (LocalChannel. sid localNode 
                             (^Message chan 10)))
         (when (== nil (get vst.localSwitches sid))
@@ -101,9 +98,8 @@
 
 (defn CloseLocalChannel
     [^*LocalChannel localChannel]
-    (let st &localChannel.localNode.localState)
 
-    (withValidLocalNodeState! st vst
+    (withValidLocalNodeState! localChannel.localNode vst
         (let localSwitch_ (get vst.localSwitches localChannel.channelID))
         (if (nil? localSwitch_)
             (throw "local switch closed")
