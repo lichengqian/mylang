@@ -122,11 +122,3 @@
             (decode! ~n))))
 
 (message! ControlHeader ConnectionRequestResponse)
-; (native :golang " 
-; type test string
-;     ")
-
-
-; (fn test []
-;     (println "hello")
-;     [(not 1) nil])

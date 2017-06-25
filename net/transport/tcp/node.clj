@@ -18,6 +18,30 @@
     ;; | Outgoing connections
      ^OutgoingConnectionMap localConnections])
 
+(defn getLocalChannel ^*LocalChannel [^*LocalNode localNode, ^ChannelID chanID]
+    (let nst &localNode.localState)
+    (lock! nst)
+
+    (match nst.value
+        [LocalNodeValid vst]
+        (return (get vst.localSwitches chanID)))
+
+        ; LocalNodeClosed
+    (return nil))
+
+(defn getLocalConnection ^*Connection
+    [^*LocalNode localNode ^ChannelID from ^EndPointAddress to]
+
+    (let nst &localNode.localState)
+    (lock! nst)
+
+    (match nst.value
+        [LocalNodeValid vst]
+        (return
+            (get-in vst.localConnections [from to])))
+    (return nil))
+
+
 (defrecord LocalChannel
     [^ChannelID channelID
      ^*LocalNode localNode
@@ -116,10 +140,10 @@
 
 (defn initConnectionState ^*ConnectionState []
     (native
-        "return &ConnectionState {"
-        "   incoming: make(map[ConnectionId]*IncomingConnection),"
-        "   incomingFrom: newIncomingConnectionMap(),"
-        "}"))
+        "return &ConnectionState {
+            incoming: make(map[ConnectionId]*IncomingConnection),
+            incomingFrom: newIncomingConnectionMap(),
+         }"))
 
 (defn handleNodeMessages [^*LocalNode localNode]
     (let 
@@ -153,15 +177,8 @@
                     Uninit
                     (do
                         (let 
-                            switchid (decodeChannelID payload)
-                            nst &localNode.localState
-                            pSwitch (^*LocalChannel withMVar nst 
-                                        (match nst.value
-                                            [LocalNodeValid vst]
-                                            (return (get vst.localSwitches switchid)))
-
-                                            ; LocalNodeClosed
-                                        (return nil)))
+                            pSwitch (getLocalChannel localNode
+                                        (decodeChannelID payload)))
                         
                         (if (nil? pSwitch)
                             (dissoc  st.incoming cid)
@@ -245,12 +262,7 @@
 (defn connBetween ^*Connection
     [^*LocalNode node ^ChannelID from ^EndPointAddress to]
     (let conn 
-        (^*Connection withMVar node.localState
-            (match node.localState.value
-                [LocalNodeValid vst]
-                (return
-                    (get-in vst.localConnections [from to])))
-            (return nil)))
+        (getLocalConnection node from to))
     
     (when (nil? conn)
         (<- newconn (setupConnBetween node from to))
@@ -261,12 +273,12 @@
 ;;; Node controller internal data types                                        --
 ;;;------------------------------------------------------------------------------
 (native
-    "type Identifier interface {"
-    " tagIdentifier() uint8"
-    "}"
-    "func (addr EndPointAddress) tagIdentifier() uint8 {"
-    " return 0"
-    "}")
+    "type Identifier interface {
+     tagIdentifier() uint8
+    }
+    func (addr EndPointAddress) tagIdentifier() uint8 {
+     return 0
+    }")
 
 ;;; | Why did a switch die?
 (enum DiedReason
