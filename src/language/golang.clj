@@ -172,7 +172,9 @@
   (str "alias " (emit name) "='" (emit expr) "'"))
 
 (defmethod emit-special [::golang 'str] [type [str & args]]
-  (apply clojure.core/str (map emit args)))
+  (add-import "fmt")
+  (cl-format nil "fmt.Sprint(~{~A~^, ~})"
+    (map emit args)))
 
 (defmethod emit-special [::golang 'println] [type [println & args]]
   (add-import "fmt")

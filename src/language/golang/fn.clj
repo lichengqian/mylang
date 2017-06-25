@@ -56,9 +56,10 @@
                 (if (nil? (typeof sig))
                   ""
                   "nil,")
-                (if (string? v)
-                  (str "errors.New(\"" v "\")")
-                  (emit v))))
+                (if (symbol? v)
+                  (emit v) 
+                  (cl-format nil "errors.New(~A)"
+                      (emit v)))))
 
             (emit-body [body]
               (if @has-err
