@@ -34,7 +34,7 @@ type Connection struct {
 }
 
 func (conn *Connection) Write(bs []byte) (int, error) {
-	return conn.Write(bs)
+	return conn.Send(bs)
 }
 
 func CreateTransport(lAddr string) (*Transport, error) {

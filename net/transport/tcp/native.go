@@ -23,7 +23,7 @@ func wait(n Notifier) {
 }
 
 func notify(n Notifier) {
-	n <- struct{}{}
+	close(n)
 }
 
 type AtomicBool int32

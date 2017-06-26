@@ -198,6 +198,8 @@ func (transport *TCPTransport) apiCloseEndPoint(evs []Event, ourEndPoint *LocalE
 
 		switch st := theirState.value.(type) {
 		case *RemoteEndPointInit:
+			resolved := st._1
+			notify(resolved)
 			theirState.value = closed
 		case *RemoteEndPointValid:
 			// Schedule an action to send a CloseEndPoint message and then
@@ -694,10 +696,10 @@ func (ourEndPoint *LocalEndPoint) createConnectionTo_go(theirAddress EndPointAdd
 			theirState.Lock()
 			defer theirState.Unlock()
 
-			switch theirState.value.(type) {
+			switch st := theirState.value.(type) {
 			case *RemoteEndPointInit:
-				// resovled := st._1
-				// notify(resolved)
+				resolved := st._1
+				notify(resolved)
 				ourEndPoint.removeRemoteEndPoint(theirEndPoint)
 				theirState.value = RemoteEndPointClosed{}
 			}
@@ -789,7 +791,8 @@ func (ourEndPoint *LocalEndPoint) setupRemoteEndPoint(theirEndPoint *RemoteEndPo
 
 		switch st := theirState.value.(type) {
 		case *RemoteEndPointInit:
-			// putMVar crossed _
+			crossed := st._2
+			notify(crossed)
 		case *RemoteEndPointFailed:
 			return rsp, st._1
 		default:
@@ -872,6 +875,24 @@ func (ourEndPoint *LocalEndPoint) findRemoteEndPoint(theirAddress EndPointAddres
 		return nil, false, errors.New(st._2)
 	case *RemoteEndPointInit:
 		//TODO: 1803
+		resolved, crossed, initOrigin := st._1, st._2, st._3
+		switch findOrigin.(type) {
+		case RequestedByUs:
+			wait(resolved)
+			return ourEndPoint.findRemoteEndPoint(theirAddress, findOrigin)
+		case RequestedByThem:
+			switch initOrigin.(type) {
+			case RequestedByUs:
+				if ourEndPoint.localAddress.String() > theirAddress.String() {
+					// Wait for the Crossed message
+					wait(crossed)
+					return theirEndPoint, true, nil
+				} else {
+					return theirEndPoint, false, nil
+				}
+			}
+		}
+		// case RequestedByThem:
 		return nil, false, errors.New("Already connected")
 	case *RemoteEndPointValid:
 		return theirEndPoint, false, nil
@@ -977,6 +998,8 @@ func (ourEndPoint *LocalEndPoint) resolveInit(theirEndPoint *RemoteEndPoint, new
 
 	switch p := theirEndPoint.remoteState.value.(type) {
 	case *RemoteEndPointInit:
+		resolved := p._1
+		notify(resolved)
 		switch newState.(type) {
 		case RemoteEndPointClosed:
 			ourEndPoint.removeRemoteEndPoint(theirEndPoint)

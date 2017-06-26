@@ -140,62 +140,58 @@
     (let 
         st (initConnectionState)
          
-        invalidRequest 
-        (fn [^ConnectionId cid ^String msg]
-            (dissoc  st.incoming, cid))
+        invalidRequest  (fn [^ConnectionId cid ^String msg]
+                            (dissoc  st.incoming, cid))
 
-        onConnectionOpened
-        (fn [^ConnectionId cid, ^EndPointAddress ep]
-            (assoc st.incoming cid (&IncomingConnection. ep (Uninit.)))
-            (assoc-in st.incomingFrom [ep] cid))
+        onConnectionOpened  (fn [^ConnectionId cid, ^EndPointAddress ep]
+                                (assoc st.incoming cid (&IncomingConnection. ep (Uninit.)))
+                                (assoc-in st.incomingFrom [ep] cid))
 
-        onConnectionClosed 
-        (fn [^ConnectionId cid]
-            (let pConn (get st.incoming cid))
-            (if (nil? pConn)
-                (invalidRequest cid "closed unknown connection")
-                (do
-                    (dissoc st.incoming cid)
-                    (dissoc (get st.incomingFrom pConn.theirAddress) cid))))
+        onConnectionClosed  (fn [^ConnectionId cid]
+                                (let pConn (get st.incoming cid))
+                                (if (nil? pConn)
+                                    (invalidRequest cid "closed unknown connection")
+                                    (do
+                                        (dissoc st.incoming cid)
+                                        (dissoc (get st.incomingFrom pConn.theirAddress) cid))))
         
-        onReceived
-        (fn [^ConnectionId cid, ^ByteString payload]
-            (let pConn (get st.incoming cid))
-            (if (nil? pConn)
-                (invalidRequest cid "message received from an unknown connection")
+        onReceived  (fn [^ConnectionId cid, ^ByteString payload]
+                        (let pConn (get st.incoming cid))
+                        (if (nil? pConn)
+                            (invalidRequest cid "message received from an unknown connection")
 
-                (match pConn.theirTarget
-                    Uninit
-                    (do
-                        (let 
-                            pSwitch (getLocalChannel localNode
-                                        (decodeChannelID payload)))
-                        
-                        (if (nil? pSwitch)
-                            (dissoc  st.incoming cid)
-                            (assoc st.incoming cid (&IncomingConnection. pConn.theirAddress (&ToChannel. pSwitch)))))
+                            (match pConn.theirTarget
+                                Uninit
+                                (do
+                                    (let 
+                                        pSwitch (getLocalChannel localNode
+                                                    (decodeChannelID payload)))
+                                    
+                                    (if (nil? pSwitch)
+                                        (dissoc  st.incoming cid)
+                                        (assoc st.incoming cid 
+                                            (&IncomingConnection. pConn.theirAddress (&ToChannel. pSwitch)))))
 
-                    [ToChannel pSwitch]
-                    (do
-                        (println pSwitch.channelID payload)
-                        (>! pSwitch.Queue 
-                            (Message. pConn.theirAddress payload))))))
+                                [ToChannel pSwitch]
+                                (do
+                                    (println pSwitch.channelID payload)
+                                    (>! pSwitch.Queue 
+                                        (Message. pConn.theirAddress payload))))))
 
-        onErrorEvent
-        (fn ^Bool [^EventErrorCode errcode ^Error err]
-            (println errcode err)
-            (match errcode
-                [EventConnectionLost addr]
-                (do
-                    (native
-                        "for cid, _ := range st.incomingFrom[addr] {"
-                        "   delete(st.incoming, cid)"
-                        "}")
-                    (dissoc  st.incomingFrom addr))
+        onErrorEvent    (fn ^Bool [^EventErrorCode errcode ^Error err]
+                            (println errcode err)
+                            (match errcode
+                                [EventConnectionLost addr]
+                                (do
+                                    (native
+                                        "for cid, _ := range st.incomingFrom[addr] {"
+                                        "   delete(st.incoming, cid)"
+                                        "}")
+                                    (dissoc  st.incomingFrom addr))
 
-                EventEndPointFailed (return true)
-                EventTransportFailed (return true))
-            (return false)))
+                                EventEndPointFailed (return true)
+                                EventTransportFailed (return true))
+                            (return false)))
 
     (println "handling node message...") 
     (forever
@@ -271,7 +267,7 @@
      return 0
     }")
 
-;;; | Why did a switch die?
+;;; | Why did a channel die?
 (enum DiedReason
     DiedDisconnect
     DiedNodeDown)
