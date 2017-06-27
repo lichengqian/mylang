@@ -5,6 +5,7 @@
   (str "return " (emit v)))
 
 (def ^:dynamic *return* emit-return-default)
+(def ^:dynamic *self* "")
 
 (defmethod emit-special [::golang 'return]
   [_ [_ v]]
@@ -80,7 +81,7 @@
   [name doc? sig body]
   (assert (symbol? name))
   (str (emit-doc doc?)
-      "func " name
+      "func " *self* name
       (emit-function-decl sig body)
       "\n\n"))
 
@@ -89,3 +90,9 @@
   (str "func "
       (emit-function-decl sig body)))
 
+;; impl support 
+;; (impl ^StructType structVar (defn...))
+(defmethod emit-special [::golang 'impl] 
+  [_ [ _ self & decls]]
+  (with-bindings {#'*self* (paren (emit-arg self))}
+    (emit-do decls)))

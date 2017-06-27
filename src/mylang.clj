@@ -79,6 +79,7 @@
   special-forms
   #{'ns 'import 'struct 'type 'enum 'val 'val- 'main 
     'defrecord 'defn 'defn- 'fn 'defmacro
+    'impl             ; struct method support
     'deferr           ; error support
     'deftest 'tlog ; test support
     'go 'chan '<! '>!         ; concurrent support

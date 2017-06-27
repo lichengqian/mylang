@@ -28,20 +28,21 @@
                 [LocalNodeValid ~vst]
                 (do ~@body)))))
 
-(defn getLocalChannel ^*LocalChannel [^*LocalNode localNode, ^ChannelID chanID]
-    (withValidLocalNodeState! localNode vst
-        (return (get vst.localSwitches chanID)))
+(impl ^*LocalNode localNode
+    (defn getLocalChannel ^*LocalChannel [^ChannelID chanID]
+        (withValidLocalNodeState! localNode vst
+            (return (get vst.localSwitches chanID)))
 
-        ; LocalNodeClosed
-    (return nil))
+            ; LocalNodeClosed
+        (return nil))
 
-(defn getLocalConnection ^*Connection
-    [^*LocalNode localNode ^ChannelID from ^EndPointAddress to]
-    (withValidLocalNodeState! localNode vst
-        (return
-            (get-in vst.localConnections [from to])))
-    
-    (return nil))
+    (defn getLocalConnection ^*Connection
+        [^ChannelID from ^EndPointAddress to]
+        (withValidLocalNodeState! localNode vst
+            (return
+                (get-in vst.localConnections [from to])))
+        
+        (return nil)))
 
 (defrecord LocalChannel
     [^ChannelID channelID
@@ -164,7 +165,7 @@
                                 Uninit
                                 (do
                                     (let 
-                                        pSwitch (getLocalChannel localNode
+                                        pSwitch (localNode.getLocalChannel
                                                     (decodeChannelID payload)))
                                     
                                     (if (nil? pSwitch)
@@ -249,7 +250,7 @@
 (defn connBetween ^*Connection
     [^*LocalNode node ^ChannelID from ^EndPointAddress to]
     (let conn 
-        (getLocalConnection node from to))
+        (node.getLocalConnection from to))
     
     (when (nil? conn)
         (<- newconn (setupConnBetween node from to))
