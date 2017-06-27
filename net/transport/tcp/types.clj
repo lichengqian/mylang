@@ -14,6 +14,16 @@
     (TransPortValid ValidTransportState)
     TransportClosed)
 
+(defmacro withValidTransportState! [transport vst & body]
+    (let [st (symbol (str "&" transport ".transportState"))
+          v (symbol "st.value")]
+        `(do
+            (let st ~st)
+            (lock! st)
+            (match ~v
+                [TransPortValid ~vst]
+                (do ~@body)))))
+
 (struct ValidTransportState
     _localEndPoints (Map EndPointId *LocalEndPoint)
     _nextEndPointId EndPointId)
@@ -23,10 +33,30 @@
     localState  (MVar LocalEndPointState)
     localQueue   (Chan Event))
 
+(impl ^*TCPTransport transport
+    (defn removeLocalEndPoint 
+        " | Remove reference to a local endpoint from the transport state
+
+ Does nothing if the transport is closed"
+        [^*LocalEndPoint ourEndPoint]
+        (withValidTransportState! transport vst
+            (let epid ourEndPoint.localAddress.EndPointId)
+            (dissoc vst._localEndPoints epid))))
+
 (enum LocalEndPointState
     (LocalEndPointValid ValidLocalEndPointState)
     LocalEndPointClosed)
     
+(defmacro withValidLocalEndPointState! [ourEndPoint vst & body]
+    (let [st (symbol (str "&" ourEndPoint ".localState"))
+          v (symbol "st.value")]
+        `(do
+            (let st ~st)
+            (lock! st)
+            (match ~v
+                [LocalEndPointValid ~vst]
+                (do ~@body)))))
+
 (struct ValidLocalEndPointState
     _localNextConnOutId   LightweightConnectionId
     _nextConnInId       HeavyweightConnectionId
@@ -37,6 +67,15 @@
     remoteState (MVar RemoteState)
     remoteId    HeavyweightConnectionId
     remoteScheduled     (Chan Action))
+
+(impl ^*LocalEndPoint ourEndPoint
+    (defn removeRemoteEndPoint 
+        " | Remove reference to a remote endpoint from a local endpoint
+
+ If the local endpoint is closed, do nothing"
+        [^*RemoteEndPoint theirEndPoint]
+        (withValidLocalEndPointState! ourEndPoint vst
+            (dissoc vst._localConnections theirEndPoint.remoteAddress))))
 
 (enum RequestedBy
     RequestedByUs

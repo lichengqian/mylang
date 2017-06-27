@@ -1016,42 +1016,6 @@ func (ourEndPoint *LocalEndPoint) resolveInit(theirEndPoint *RemoteEndPoint, new
 	return nil
 }
 
-// | Remove reference to a remote endpoint from a local endpoint
-//
-// If the local endpoint is closed, do nothing
-func (ourEndPoint *LocalEndPoint) removeRemoteEndPoint(theirEndPoint *RemoteEndPoint) {
-	ourEndPoint.localState.Lock()
-	defer ourEndPoint.localState.Unlock()
-
-	switch ourState := ourEndPoint.localState.value.(type) {
-	case *LocalEndPointValid:
-		vst := &ourState._1
-		remoteEndPoint, ok := vst._localConnections[theirEndPoint.remoteAddress]
-		if ok {
-			if remoteEndPoint.remoteId == theirEndPoint.remoteId {
-				delete(vst._localConnections, theirEndPoint.remoteAddress)
-			}
-		}
-	case LocalEndPointClosed:
-		return
-	}
-}
-
-// | Remove reference to a local endpoint from the transport state
-//
-// Does nothing if the transport is closed
-func (transport *TCPTransport) removeLocalEndPoint(ourEndPoint *LocalEndPoint) {
-	state := &transport.transportState
-	state.Lock()
-	defer state.Unlock()
-
-	epid := ourEndPoint.localAddress.EndPointId
-	endpoints := state.value.(*TransPortValid)._1._localEndPoints
-	if _, ok := endpoints[epid]; ok {
-		delete(endpoints, epid)
-	}
-}
-
 // | Create a new local endpoint
 //
 // May throw a TransportError NewEndPointErrorCode exception if the transport
