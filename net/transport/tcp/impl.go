@@ -42,8 +42,8 @@ func (transport *TCPTransport) apiCloseTransport(evs []Event) error {
 }
 
 // | Create a new endpoint
-func (transport *TCPTransport) apiNewEndPoint(epid EndPointId) (*EndPoint, error) {
-	ourEndPoint, err := transport.createLocalEndPoint(epid)
+func (transport *TCPTransport) apiNewEndPoint(epid EndPointId, shake ShakeHand) (*EndPoint, error) {
+	ourEndPoint, err := transport.createLocalEndPoint(epid, shake)
 	if err != nil {
 		return nil, err
 	}
@@ -328,6 +328,15 @@ func (ourEndPoint *LocalEndPoint) handleConnectionRequest(theirAddress *EndPoint
 		return
 	}
 
+	//handshake!
+	if ourEndPoint.shakeHand != nil {
+		conn, err = ourEndPoint.shakeHand(conn, *theirAddress)
+		if err != nil {
+			println("shake hand failed", err)
+			conn.Close()
+			return
+		}
+	}
 	vst := &RemoteEndPointValid{ValidRemoteEndPointState{
 		remoteConn:           conn,
 		_remoteNextConnOutId: firstNonReservedLightweightConnectionId,
@@ -755,7 +764,7 @@ func (ourEndPoint *LocalEndPoint) setupRemoteEndPoint(theirEndPoint *RemoteEndPo
 	ourAddress := ourEndPoint.localAddress
 	theirAddress := theirEndPoint.remoteAddress
 
-	sock, rsp, err := socketToEndPoint(ourAddress, theirAddress)
+	sock, rsp, err := socketToEndPoint(ourAddress, theirAddress, ourEndPoint.shakeHand)
 	if err != nil {
 		ourEndPoint.resolveInit(theirEndPoint, &RemoteEndPointInvalid{nil, err.Error()})
 		return nil, err
@@ -1020,7 +1029,7 @@ func (ourEndPoint *LocalEndPoint) resolveInit(theirEndPoint *RemoteEndPoint, new
 //
 // May throw a TransportError NewEndPointErrorCode exception if the transport
 // is closed.
-func (tp *TCPTransport) createLocalEndPoint(epid EndPointId) (*LocalEndPoint, error) {
+func (tp *TCPTransport) createLocalEndPoint(epid EndPointId, shake ShakeHand) (*LocalEndPoint, error) {
 	tp.transportState.Lock()
 	defer tp.transportState.Unlock()
 
@@ -1046,6 +1055,7 @@ func (tp *TCPTransport) createLocalEndPoint(epid EndPointId) (*LocalEndPoint, er
 				sync.Mutex
 			}{value: st},
 			localQueue: make(chan Event, 10),
+			shakeHand:  shake,
 		}
 		return endpoints[epid], nil
 	case TransportClosed:

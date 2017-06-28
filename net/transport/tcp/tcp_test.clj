@@ -10,7 +10,7 @@
     (go
         (println "server")
         (<- tp (CreateTransport "127.0.0.1:9999"))
-        (<- ep (tp.NewEndPoint 1000))
+        (<- ep (tp.NewEndPoint 1000 nil))
         (println "server" (ep.Address))
         (>! serverAddr (ep.Address))
         (let theirAddr (<! clientAddr))
@@ -81,7 +81,7 @@
     (go     ; server
         (println "server")
         (<- tp (CreateTransport "127.0.0.1:9999"))
-        (<- ep (tp.NewEndPoint 1000))
+        (<- ep (tp.NewEndPoint 1000 nil))
         (println "server" (ep.Address))
         (>! serverAddr (ep.Address))
         (let theirAddr (<! clientAddr))
@@ -158,7 +158,7 @@
 ;;; Test connecting to invalid or non-existing endpoints
 (deftest invalidConnect
     (<- tp (CreateTransport "127.0.0.1:9999"))
-    (<- ep (tp.NewEndPoint 1000))
+    (<- ep (tp.NewEndPoint 1000 nil))
 
     ;; Syntax connect, but invalid hostname (TCP address lookup failure)
     (let [conn2, err] (ep.Dial (NewEndPointAddress "invalidAddress", 0)))
@@ -189,7 +189,7 @@
     ;; server
     (go
         (println "server")
-        (<- endpoint (transport.NewEndPoint 1000))
+        (<- endpoint (transport.NewEndPoint 1000 nil))
         (let ourAddress (endpoint.Address))
         (>! serverAddr ourAddress)
         (let theirAddress (<! clientAddr))
@@ -215,7 +215,7 @@
     ;; client
     (go
         (println "client")
-        (<- endpoint (transport.NewEndPoint 2000))
+        (<- endpoint (transport.NewEndPoint 2000 nil))
         (let ourAddress (endpoint.Address))
         (>! clientAddr ourAddress)
         (let theirAddress (<! serverAddr))
@@ -270,7 +270,7 @@
     ;; server
     (go
         (println "server")
-        (<- endpoint (transport.NewEndPoint 1000))
+        (<- endpoint (transport.NewEndPoint 1000 nil))
         (let ourAddress (endpoint.Address))
         (>! serverAddr ourAddress)
         (let theirAddress (<! clientAddr))
@@ -292,7 +292,7 @@
     ;; client
     (go
         (println "client")
-        (<- endpoint (transport.NewEndPoint 2000))
+        (<- endpoint (transport.NewEndPoint 2000 nil))
         (let ourAddress (endpoint.Address))
         (>! clientAddr ourAddress)
         (let theirAddress (<! serverAddr))
@@ -346,7 +346,7 @@
 
     (go
         (<- transport (CreateTransport "127.0.0.1:9999"))
-        (<- endpoint (transport.NewEndPoint 1000))
+        (<- endpoint (transport.NewEndPoint 1000 nil))
         ;; Since we're lying about the server's address, we have to manually
         ;; construct the proper address. If we used its actual address, the clients
         ;; would try to resolve "128.0.0.1" and then would fail due to invalid
@@ -391,7 +391,7 @@
 
     ;; server
     (go 
-        (<- endpoint (transport.NewEndPoint 1000))
+        (<- endpoint (transport.NewEndPoint 1000 nil))
         (>! serverAddr (endpoint.Address))
 
         (let event (endpoint.Receive))
@@ -406,7 +406,7 @@
 
     ;; client
     (go
-        (<- endpoint (transport.NewEndPoint 2000))
+        (<- endpoint (transport.NewEndPoint 2000 nil))
         (let
             ourAddr (endpoint.Address)
             theirAddr (<! serverAddr))
@@ -433,7 +433,7 @@
     ;; end point.)
     (go
         (<- transport (CreateTransport "127.0.0.1:9999"))
-        (<- ep (transport.NewEndPoint 1000))
+        (<- ep (transport.NewEndPoint 1000 nil))
         (>! serverAddr (ep.Address))
 
         (let event (ep.Receive))

@@ -31,7 +31,8 @@
 (struct LocalEndPoint
     localAddress EndPointAddress
     localState  (MVar LocalEndPointState)
-    localQueue   (Chan Event))
+    localQueue   (Chan Event)
+    shakeHand  ShakeHand)
 
 (impl ^*TCPTransport transport
     (defn removeLocalEndPoint 

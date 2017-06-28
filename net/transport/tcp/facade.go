@@ -2,6 +2,7 @@ package tcp
 
 import (
 	"fmt"
+	"net"
 )
 
 type EndPointAddress struct {
@@ -9,13 +10,15 @@ type EndPointAddress struct {
 	EndPointId
 }
 
+type ShakeHand func(net.Conn, EndPointAddress) (net.Conn, error)
+
 func NewEndPointAddress(lAddr string, ep int) EndPointAddress {
 	return EndPointAddress{TransportAddr(lAddr), EndPointId(ep)}
 }
 
 type Transport struct {
 	Close       func() error
-	NewEndPoint func(EndPointId) (*EndPoint, error)
+	NewEndPoint func(EndPointId, ShakeHand) (*EndPoint, error)
 }
 
 type EndPoint struct {
@@ -50,8 +53,8 @@ func (transport *TCPTransport) ToTransport() *Transport {
 		Close: func() error {
 			return transport.apiCloseTransport([]Event{})
 		},
-		NewEndPoint: func(epid EndPointId) (*EndPoint, error) {
-			return transport.apiNewEndPoint(epid)
+		NewEndPoint: func(epid EndPointId, shake ShakeHand) (*EndPoint, error) {
+			return transport.apiNewEndPoint(epid, shake)
 		},
 	}
 }

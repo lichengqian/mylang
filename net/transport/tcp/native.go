@@ -171,7 +171,7 @@ func forkServer(lAddr string, handler func(net.Conn)) error {
 // responsible for eventually closing the socket and filling the MVar (which
 // is empty). The MVar must be filled immediately after, and never before,
 // the socket is closed.
-func socketToEndPoint(ourAddress EndPointAddress, theirAddress EndPointAddress) (net.Conn, ConnectionRequestResponse, error) {
+func socketToEndPoint(ourAddress EndPointAddress, theirAddress EndPointAddress, shake ShakeHand) (net.Conn, ConnectionRequestResponse, error) {
 	sock, err := net.Dial("tcp", string(theirAddress.TransportAddr))
 	if err != nil {
 		return nil, nil, err
@@ -181,6 +181,13 @@ func socketToEndPoint(ourAddress EndPointAddress, theirAddress EndPointAddress) 
 	WriteUint32(uint32(theirAddress.EndPointId), sock)
 	//write our address
 	WriteWithLen(encodeEndPointAddress(ourAddress), sock)
+	//handshake
+	if shake != nil {
+		sock, err = shake(sock, theirAddress)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
 	response, err := ReadUint32(sock)
 	if err != nil {
 		defer sock.Close()
@@ -192,7 +199,7 @@ func socketToEndPoint(ourAddress EndPointAddress, theirAddress EndPointAddress) 
 
 // for test only
 func socketToEndPoint_(ourAddress EndPointAddress, theirAddress EndPointAddress) (net.Conn, error) {
-	sock, rsp, err := socketToEndPoint(ourAddress, theirAddress)
+	sock, rsp, err := socketToEndPoint(ourAddress, theirAddress, nil)
 	if err != nil {
 		return nil, err
 	}

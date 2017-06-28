@@ -100,7 +100,7 @@ func mockUnnecessaryConnect(numThreads int, ourAddress EndPointAddress, theirAdd
 
 		go func(idx int) {
 			defer notify(done)
-			sock, rsp, err := socketToEndPoint(ourAddress, theirAddress)
+			sock, rsp, err := socketToEndPoint(ourAddress, theirAddress, nil)
 			fmt.Println("mockUnnecessaryConnect:", idx, rsp, err)
 			if err != nil {
 				return

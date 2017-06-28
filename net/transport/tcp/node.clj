@@ -60,8 +60,8 @@
     [^EndPointAddress From
      ^ByteString Payload])
 
-(defn NewLocalNode ^*LocalNode [^*Transport transport]
-    (<- endpoint (transport.NewEndPoint 0))
+(defn NewLocalNode ^*LocalNode [^*Transport transport, ^ShakeHand shake]
+    (<- endpoint (transport.NewEndPoint 0 shake))
     (let 
         st (LocalNodeValid. (map->ValidLocalNodeState 
                                 {localSwitches (native "make(map[ChannelID]*LocalChannel)")
