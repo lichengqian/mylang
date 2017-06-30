@@ -179,7 +179,7 @@
 (defmethod emit-special [::golang 'println] [type [println & args]]
   (add-import "fmt")
   (cl-format nil "fmt.Println(~{~A~^, ~})"
-    (map emit args)))
+    (mapv emit args)))
 
 (defmethod emit-special [::golang 'print] [type [print & args]]
   (add-import "fmt")

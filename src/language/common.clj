@@ -5,11 +5,13 @@
    [clojure.tools.logging :refer [tracef]]
    [clojure.walk :as walk]
    [clojure.zip :as zip]
+   [clojure.pprint :refer [pprint]]
 
    [mylang
     :refer :all]))
 
 (load "common/util")
+(load "common/transform")
 
 ;; Main dispatch functions.
 ;;
@@ -249,7 +251,8 @@
   (emit-s-expr expr))
 
 (defmethod emit [::common-impl clojure.lang.LazySeq] [exprs]
-  (emit-do exprs))
+  ; (print "emit LazySeq" exprs)
+  (emit-s-expr exprs))
 
 (defmethod emit [::common-impl clojure.lang.Cons]
   [expr]

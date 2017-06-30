@@ -22,7 +22,7 @@
 
 (defn- emit-function-decl
   [sig body]
-  (println (meta sig))
+  ; (println (meta sig) body)
   (with-local-vars [has-err false]
     (letfn [(check-error-return? [body]
                 (prewalk #(if (or (= '<- %) (= 'throw %)) 
@@ -63,12 +63,15 @@
                       (emit v)))))
 
             (emit-body [body]
+              ; (println "emit-body" body)
               (if @has-err
                 (with-bindings {#'*error-code* (error-code)
                                 #'*return* emit-return
                                 #'*throw*  emit-throw}
+                  ; (println "@has-err")
                   (emit-do body))
                 (with-bindings {#'*return* emit-return-default}
+                  ; (println "no err" (type (first body)))
                   (emit-do body))))]
 
       (check-error-return? body)

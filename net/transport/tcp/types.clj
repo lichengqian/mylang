@@ -148,20 +148,12 @@
     EndPointClosed  "EndPoint closed"
     ConnectionClosed "Connection closed")
     
-(defmacro encode! [n]
-    (cl-format nil "func encode~A(n ~A) uint8 { return n.tag~A() }"
-        n n n))
+(defmacro message! [n]
+    `(do (encode! ~n)
+        (decode! ~n)))
 
-(defmacro decode! [n]
-    (cl-format nil "func decode~A(tag uint8) ~A {~% switch tag { ~{case ~D: return ~A{}~%~} default: return nil~% }~%}" 
-        n n (interleave (range) (get-enum n))))
-
-(defmacro message! [& names]
-    (for [n names]
-        `(do (encode! ~n)
-            (decode! ~n))))
-
-(message! ControlHeader ConnectionRequestResponse)
+(message! ControlHeader)
+(message! ConnectionRequestResponse)
 
 (impl ^*ValidRemoteEndPointState vst
     (defn sendOn 

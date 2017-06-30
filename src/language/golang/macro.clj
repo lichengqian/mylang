@@ -28,13 +28,3 @@
         _unlock (str "defer " v ".Unlock()")]
       `(native ~_lock ~_unlock)))
 
-(defmethod emit-special [::golang 'defmacro] 
-  [_ [ _ n sig & body]]
-  (let [code
-          `(defmethod emit-macro-call [::golang '~n]
-              [~'_ ~@sig] ~@body)]
-    (println code) 
-    (eval code)
-    ""))
-      
-

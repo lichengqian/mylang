@@ -9,6 +9,7 @@
    [clojure.java.io :as io]
    [clojure.set :refer [union]]
    [clojure.string :as string]
+   [clojure.pprint :refer [pprint]]
    [clojure.tools.logging :refer [tracef]]))
   ;  [clojure.walk :as walk]
    
@@ -77,7 +78,9 @@
      `emit-special`."
     :internal true}
   special-forms
-  #{'ns 'import 'struct 'type 'enum 'val 'val- 'main 
+  #{'ns 'import 
+    'struct 'encode! 'decode!
+    'type 'enum 'val 'val- 'main 
     'defrecord 'defn 'defn- 'fn 'defmacro
     'impl             ; struct method support
     'deferr           ; error support
@@ -409,7 +412,7 @@
 
 (defn emit-script
   [forms]
-  (tracef "emit-script %s" forms)
+  ; (pprint forms)
   (tracef "emit-script metas %s" (vec (map meta forms)))
   (let [code (if (> (count forms) 1)
                (emit-do forms)

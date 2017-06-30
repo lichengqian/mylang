@@ -56,7 +56,8 @@
 (defn is-form? [& s]
   (fn [f]
     (and (seq? f)
-         (some true? (map #(= % (first f)) s)))))
+         (symbol? (first f))
+         (some true? (map #(= % (simple-symbol (first f))) s)))))
 
 (defn is-special-form? [s f]
   (and (seq? f)

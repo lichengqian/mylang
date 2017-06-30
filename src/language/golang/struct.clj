@@ -23,3 +23,14 @@
         (->> (partition 2 fields)
             (map emit-setter)
             (string/join)))))
+
+(defmethod emit-special [::golang 'encode!] 
+    [_ [_ n]]
+    (cl-format nil "func encode~A(n ~A) uint8 { return n.tag~A() }"
+        n n n))
+
+(defmethod emit-special [::golang 'decode!] 
+    [_ [_ n]]
+    (cl-format nil "func decode~A(tag uint8) ~A {~% switch tag { ~{case ~D: return ~A{}~%~} default: return nil~% }~%}" 
+        n n
+        (interleave (range) (get-enum n))))
