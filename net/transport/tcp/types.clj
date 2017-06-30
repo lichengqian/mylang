@@ -162,3 +162,10 @@
             (decode! ~n))))
 
 (message! ControlHeader ConnectionRequestResponse)
+
+(impl ^*ValidRemoteEndPointState vst
+    (defn sendOn 
+        "| Send a payload over a heavyweight connection (thread safe)"
+        [^"func (net.Conn)" sender]
+        (lock! vst.remoteSendLock)
+        (sender vst.remoteConn)))

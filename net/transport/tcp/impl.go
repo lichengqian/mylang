@@ -919,13 +919,6 @@ func (ourEndPoint *LocalEndPoint) findRemoteEndPoint(theirAddress EndPointAddres
 	return nil, false, nil
 }
 
-// | Send a payload over a heavyweight connection (thread safe)
-func (vst *ValidRemoteEndPointState) sendOn(sender func(net.Conn)) {
-	vst.remoteSendLock.Lock()
-	defer vst.remoteSendLock.Unlock()
-	sender(vst.remoteConn)
-}
-
 // | Send a CloseSocket request if the remote endpoint is unused
 func (ourEndPoint *LocalEndPoint) closeIfUnused(theirEndPoint *RemoteEndPoint) {
 	theirState := &theirEndPoint.remoteState
