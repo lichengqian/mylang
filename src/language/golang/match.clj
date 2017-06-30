@@ -12,13 +12,13 @@
       (vector? k)
       (let [vars (rest k)
             idx (range 1 (+ 1 (count vars)))
-            assign-var (str (string/join ", " (map emit vars))
-                            " := "
-                            (string/join ", "
-                                (map #(str "_s._" %) idx))
-                            "\n")]
+            assign-var (fn  [s i]
+                            (if (string/starts-with? (name s) "*")
+                                (cl-format nil "~A := &_s._~A\n" (.substring (name s) 1) i)
+                                (cl-format nil "~A := _s._~A\n" (name s) i)))
+            assign-vars (string/join (map assign-var vars idx))]
         (str "case *" (str (emit (first k)) ":\n")
-            assign-var
+            assign-vars
             (emit expr)))))
             
   ([expr]

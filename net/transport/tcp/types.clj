@@ -40,7 +40,7 @@
 
  Does nothing if the transport is closed"
         [^*LocalEndPoint ourEndPoint]
-        (withValidTransportState! transport vst
+        (withValidTransportState! transport *vst
             (let epid ourEndPoint.localAddress.EndPointId)
             (dissoc vst._localEndPoints epid))))
 
@@ -75,7 +75,7 @@
 
  If the local endpoint is closed, do nothing"
         [^*RemoteEndPoint theirEndPoint]
-        (withValidLocalEndPointState! ourEndPoint vst
+        (withValidLocalEndPointState! ourEndPoint *vst
             (dissoc vst._localConnections theirEndPoint.remoteAddress))))
 
 (enum RequestedBy
