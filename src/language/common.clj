@@ -3,6 +3,9 @@
    [clojure.java.io :refer [file]]
    [clojure.string :as string]
    [clojure.tools.logging :refer [tracef]]
+   [clojure.walk :as walk]
+   [clojure.zip :as zip]
+
    [mylang
     :refer :all]))
 
@@ -88,7 +91,7 @@
                `(defmethod emit-special [~lang ~t] [type# [h# ~@ps]] ~e))]
     (list* 'do codes)))
 
-;; Common functions/predicates
+;; Common functions/predicates 
 
 (defn compound-form?
   "Predicate to check if expr is a compound form"
