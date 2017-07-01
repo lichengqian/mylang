@@ -111,11 +111,6 @@
   [expr]
   (contains? special-forms expr))
 
-(defn macro?
-  "Predicate to check if expr is a macro form"
-  [expr]
-  (contains? builtin-macros expr))
-
 ;;; Implementation coverage tests
 ;;;
 (defn- emit-special-implemented? [impl special-function]
@@ -213,7 +208,6 @@
        (special-form? head) (emit-special head expr)
 
        (infix-operator? head) (emit-infix head expr1)
-       (macro? head) (emit (macroexpand-1 expr))
        :else (emit-special 'invoke expr)))
     (emit-special 'invoke expr)))
 

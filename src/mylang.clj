@@ -100,11 +100,6 @@
   #{'+ '- '/ '* '% '== '= '< '> '<= '>= '!= '<< '>> '<<< '>>> '& '| '&& '||
     'and 'or})
 
-(def 
-  builtin-macros
-  "Operators that should not be resolved."
-  #{'if-not 'when-not})
-
 (def ^:internal unresolved
   "Set of symbols that should not be resolved."
   (union special-forms operators))
