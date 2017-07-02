@@ -152,8 +152,8 @@
 
 ;;; Test the creation of a transport with an invalid address
 (deftest invalidAddress
-    (let [_ err] (CreateTransport "invalidHostName:9999"))
-    (println err))
+    (let* [[_ err] (CreateTransport "invalidHostName:9999")]
+        (println err)))
 
 ;;; Test connecting to invalid or non-existing endpoints
 (deftest invalidConnect

@@ -136,9 +136,6 @@
 (defmethod emit-special [::golang 'native] [_ [_ & lines]]
   (string/join "\n" lines))
   
-(defmethod emit-special [::golang 'native-declare] [_ [_ var value]]
-  (cl-format nil "~A := ~A\n" (emit var) (emit value)))
-  
 (defn- check-symbol [var-name]
   (when (re-matches #".*-.*" var-name)
     (throw
@@ -352,6 +349,9 @@
               (str v)))
         (emit var)))
 
+(defmethod emit-special [::golang 'native-declare] [_ [_ var value]]
+  (cl-format nil "~A := ~A\n" (emit-var var) (emit value)))
+  
 (defn- emit-let [body]
   (string/join "\n"
     (for [[var expr] (partition 2 body)]
