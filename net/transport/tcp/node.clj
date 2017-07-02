@@ -21,8 +21,7 @@
 (defmacro withValidLocalNodeState! [node vst & body]
     (let [st (symbol (str "&" node ".localState"))
           v (symbol "st.value")]
-        `(do
-            (let st ~st)
+        `(let* [st ~st]
             (lock! st)
             (match ~v
                 [LocalNodeValid ~vst]

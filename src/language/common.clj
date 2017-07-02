@@ -46,6 +46,10 @@
 ;; which avoid the need to reimplement all of `emit` for each Stevedore
 ;; implementation.
 
+(defmulti transform
+  "source to source transformation"
+  (fn [form] *script-language*))
+
 (defmulti emit-special
   "Emit a form as a string. Dispatched on the first element of the form."
   (fn [ & args] [*script-language* (identity (first args))]))

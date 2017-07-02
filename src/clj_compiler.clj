@@ -29,13 +29,13 @@
     (binding [*compiler-context* {:import #{}}]
         (set-ns (default-go-ns path))
         (-> (read-forms path)
-            expand-macros-all
+            transform
             emit-script
             output-with-context)))
 
 (defn- _transform [path]
     (->> (read-forms path)
-        expand-macros-all
+        transform
         pprint))
 
 (defn clj-transform 

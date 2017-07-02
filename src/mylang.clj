@@ -87,9 +87,9 @@
     'deftest 'tlog ; test support
     'go 'chan '<! '>!         ; concurrent support
     '<- 'return 'throw  ; io monad supoort
-    'native
+    'native 'native-declare
     'loop 'recur        ; loop support
-    'if 'when 'match 'aget 'aset 'set! 'let
+    'if 'when 'match 'aget 'aset 'set! 'let 'let*
     'local 'literally 'deref 'do 'str 'quoted 'apply
     'file-exists? 'directory? 'symlink? 'readable? 'writeable? 'empty?
     'not 'println 'print 'group 'pipe 'chain-or
