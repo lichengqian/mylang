@@ -136,8 +136,10 @@ func ReadWithLen(r io.Reader, limit int) ([]byte, error) {
 }
 
 func checkPeerHost(conn net.Conn, epAddr *EndPointAddress) bool {
-	//TODO: check remote ip and port
-	return true
+	//check remote ip and port
+	actualAddr := conn.RemoteAddr().String()
+
+	return actualAddr == string(epAddr.TransportAddr)
 }
 
 func writeConnectionRequestResponse(rsp ConnectionRequestResponse, w io.Writer) (int, error) {
@@ -145,11 +147,16 @@ func writeConnectionRequestResponse(rsp ConnectionRequestResponse, w io.Writer) 
 }
 
 // net function
-func forkServer(lAddr string, handler func(net.Conn)) error {
-	ln, err := net.Listen("tcp", lAddr)
+func (transport *TCPTransport) forkServer(handler func(net.Conn)) error {
+	lAddr := transport.transportAddr
+	ln, err := net.Listen("tcp", string(lAddr))
 	if err != nil {
 		return err
 	}
+
+	actualAddr := ln.Addr().String()
+	fmt.Println("transport linsten on :", actualAddr)
+	transport.transportAddr = TransportAddr(actualAddr)
 
 	go func() {
 		for {

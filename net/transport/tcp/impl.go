@@ -20,7 +20,7 @@ func createTCPTransport(lAddr string) (*TCPTransport, error) {
 		},
 	}
 
-	err := forkServer(lAddr, func(conn net.Conn) {
+	err := tp.forkServer(func(conn net.Conn) {
 		tp.handleConnectionRequest(conn)
 	})
 	if err != nil {
