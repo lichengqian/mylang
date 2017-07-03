@@ -163,13 +163,15 @@
         (sender vst.remoteConn)))
 
 ;;; constructor
-(defn newValidTransportState ^ValidTransportState []
+(defn newTransportState ^TransportState []
   (return
-    (map->ValidTransportState {_nextEndPointId 0})))
+    (&TransPortValid.
+        (map->ValidTransportState {_nextEndPointId 0}))))
 
-(defn newValidLocalEndPointState ^ValidLocalEndPointState []
+(defn newLocalEndPointState ^LocalEndPointState []
   (return
-    (map->ValidLocalEndPointState {_localNextConnOutId firstNonReservedLightweightConnectionId,
-                                   _nextConnInId       firstNonReservedHeavyweightConnectionId})))
+    (&LocalEndPointValid.
+        (map->ValidLocalEndPointState {_localNextConnOutId firstNonReservedLightweightConnectionId,
+                                       _nextConnInId       firstNonReservedHeavyweightConnectionId}))))
         
     
