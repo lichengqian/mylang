@@ -135,11 +135,25 @@ func ReadWithLen(r io.Reader, limit int) ([]byte, error) {
 	return buf, nil
 }
 
+func splitHostPort(addr string) (host string, port int) {
+	host, portStr, err := net.SplitHostPort(addr)
+	if err != nil {
+		panic(err)
+	}
+	port, err = strconv.Atoi(portStr)
+	if err != nil {
+		panic(err)
+	}
+	return host, port
+}
+
 func checkPeerHost(conn net.Conn, epAddr *EndPointAddress) bool {
 	//check remote ip and port
-	actualAddr := conn.RemoteAddr().String()
+	actualHost, _ := splitHostPort(conn.RemoteAddr().String())
+	declHost, _ := splitHostPort(string(epAddr.TransportAddr))
 
-	return actualAddr == string(epAddr.TransportAddr)
+	fmt.Println("checkPeerHost ", actualHost, declHost)
+	return actualHost == declHost
 }
 
 func writeConnectionRequestResponse(rsp ConnectionRequestResponse, w io.Writer) (int, error) {
