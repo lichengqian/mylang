@@ -8,10 +8,7 @@ import (
 )
 
 func createTCPTransport(lAddr string) (*TCPTransport, error) {
-	state := &TransPortValid{ValidTransportState{
-		_localEndPoints: make(map[EndPointId]*LocalEndPoint),
-		_nextEndPointId: 0,
-	}}
+	state := &TransPortValid{newValidTransportState()}
 
 	tp := &TCPTransport{
 		transportAddr: TransportAddr(lAddr),
@@ -1035,11 +1032,7 @@ func (tp *TCPTransport) createLocalEndPoint(epid EndPointId, shake ShakeHand) (*
 			return nil, errors.New("endpoint already exist")
 		}
 
-		st := &LocalEndPointValid{ValidLocalEndPointState{
-			_localNextConnOutId: firstNonReservedLightweightConnectionId,
-			_localConnections:   make(map[EndPointAddress]*RemoteEndPoint),
-			_nextConnInId:       firstNonReservedHeavyweightConnectionId,
-		}}
+		st := &LocalEndPointValid{newValidLocalEndPointState()}
 
 		endpoints[epid] = &LocalEndPoint{
 			localAddress: EndPointAddress{tp.transportAddr, epid},

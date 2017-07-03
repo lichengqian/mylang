@@ -41,12 +41,6 @@
         (string/join " ")
         (str (emit-type c) " "))))
         
-(defn- maptype? 
-  [type-exp]
-  (and 
-    (list? type-exp)
-    (= 'Map (first type-exp))))
-
 (defn- settype? 
   [type-exp]
   (and 

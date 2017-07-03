@@ -22,6 +22,20 @@
 (defn simple-symbol [s]
     (symbol (name s)))
 
+(defn maptype? 
+  [type-exp]
+  (and 
+    (list? type-exp)
+    (symbol? (first type-exp))
+    (= 'Map (first type-exp))))
+
+(defn map-constructor? [s]
+  (fn [f]
+    (and (seq? f)
+         (symbol? (first f))
+         (string/starts-with? (name (first f)) 
+           (str "map->" (name s))))))
+
 ;;; see http://ferret-lang.org/#outline-container-sec-3
 
 (defn morph-form [tree pred f]

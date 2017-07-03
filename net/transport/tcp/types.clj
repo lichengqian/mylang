@@ -161,3 +161,15 @@
         [^"func (net.Conn)" sender]
         (lock! vst.remoteSendLock)
         (sender vst.remoteConn)))
+
+;;; constructor
+(defn newValidTransportState ^ValidTransportState []
+  (return
+    (map->ValidTransportState {_nextEndPointId 0})))
+
+(defn newValidLocalEndPointState ^ValidLocalEndPointState []
+  (return
+    (map->ValidLocalEndPointState {_localNextConnOutId firstNonReservedLightweightConnectionId,
+                                   _nextConnInId       firstNonReservedHeavyweightConnectionId})))
+        
+    
