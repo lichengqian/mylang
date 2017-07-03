@@ -150,10 +150,12 @@ func splitHostPort(addr string) (host string, port int) {
 func checkPeerHost(conn net.Conn, epAddr *EndPointAddress) bool {
 	//check remote ip and port
 	actualHost, _ := splitHostPort(conn.RemoteAddr().String())
-	declHost, _ := splitHostPort(string(epAddr.TransportAddr))
+	_, port := splitHostPort(string(epAddr.TransportAddr))
 
-	fmt.Println("checkPeerHost ", actualHost, declHost)
-	return actualHost == declHost
+	actualAddr := actualHost + ":" + strconv.Itoa(port)
+	fmt.Println("checkPeerHost ", actualAddr)
+	epAddr.TransportAddr = TransportAddr(actualAddr)
+	return true
 }
 
 func writeConnectionRequestResponse(rsp ConnectionRequestResponse, w io.Writer) (int, error) {
