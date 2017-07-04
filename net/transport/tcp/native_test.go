@@ -33,65 +33,65 @@ func testAcceptConn(conn net.Conn) {
 	writeConnectionRequestResponse(ConnectionRequestAccepted{}, conn)
 }
 
-func mockEarlyDisconnect(lAddr string) (EndPointAddress, error) {
-	handler := func(conn net.Conn) {
-		// Initial setup
-		testAcceptConn(conn)
+// func mockEarlyDisconnect(lAddr string) (EndPointAddress, error) {
+// 	handler := func(conn net.Conn) {
+// 		// Initial setup
+// 		testAcceptConn(conn)
 
-		// Server opens  a logical connection
-		ch, err := ReadUint32(conn)
-		cheader := decodeControlHeader(uint8(ch))
-		lcid, err := ReadUint32(conn)
-		fmt.Println("mock2", cheader, lcid, err)
+// 		// Server opens  a logical connection
+// 		ch, err := ReadUint32(conn)
+// 		cheader := decodeControlHeader(uint8(ch))
+// 		lcid, err := ReadUint32(conn)
+// 		fmt.Println("mock2", cheader, lcid, err)
 
-		// Server sends a message
-		lcid2, err := ReadUint32(conn)
-		bs, err := ReadWithLen(conn, 1000)
-		fmt.Println("mock3", lcid2, string(bs), err)
+// 		// Server sends a message
+// 		lcid2, err := ReadUint32(conn)
+// 		bs, err := ReadWithLen(conn, 1000)
+// 		fmt.Println("mock3", lcid2, string(bs), err)
 
-		// Reply
-		sendCreateNewConnection(10002, conn)
+// 		// Reply
+// 		sendCreateNewConnection(10002, conn)
 
-		WriteUint32(10002, conn)
-		WriteWithLen([]byte("pong"), conn)
+// 		WriteUint32(10002, conn)
+// 		WriteWithLen([]byte("pong"), conn)
 
-		// Close the socket
-		conn.Close()
-	}
-	err := forkServer(lAddr, handler)
-	return EndPointAddress{TransportAddr(lAddr), EndPointId(1000)}, err
-}
+// 		// Close the socket
+// 		conn.Close()
+// 	}
+// 	err := forkServer(lAddr, handler)
+// 	return EndPointAddress{TransportAddr(lAddr), EndPointId(1000)}, err
+// }
 
-func mockEarlyCloseSocket(lAddr string) (EndPointAddress, error) {
-	handler := func(conn net.Conn) {
-		// Initial setup
-		testAcceptConn(conn)
+// func mockEarlyCloseSocket(lAddr string) (EndPointAddress, error) {
+// 	handler := func(conn net.Conn) {
+// 		// Initial setup
+// 		testAcceptConn(conn)
 
-		// Server opens  a logical connection
-		ch, err := ReadUint32(conn)
-		cheader := decodeControlHeader(uint8(ch))
-		lcid, err := ReadUint32(conn)
-		fmt.Println("mock2", cheader, lcid, err)
+// 		// Server opens  a logical connection
+// 		ch, err := ReadUint32(conn)
+// 		cheader := decodeControlHeader(uint8(ch))
+// 		lcid, err := ReadUint32(conn)
+// 		fmt.Println("mock2", cheader, lcid, err)
 
-		// Server sends a message
-		lcid2, err := ReadUint32(conn)
-		bs, err := ReadWithLen(conn, 1000)
-		fmt.Println("mock3", lcid2, string(bs), err)
+// 		// Server sends a message
+// 		lcid2, err := ReadUint32(conn)
+// 		bs, err := ReadWithLen(conn, 1000)
+// 		fmt.Println("mock3", lcid2, string(bs), err)
 
-		// Reply
-		sendCreateNewConnection(10002, conn)
+// 		// Reply
+// 		sendCreateNewConnection(10002, conn)
 
-		LightweightConnectionId(10002).sendMsg([]byte("pong"), conn)
+// 		LightweightConnectionId(10002).sendMsg([]byte("pong"), conn)
 
-		// Close the socket
-		// Send a CloseSocket even though there are still connections *in both
-		// directions*
-		sendCloseSocket(1024, conn)
-		conn.Close()
-	}
-	err := forkServer(lAddr, handler)
-	return EndPointAddress{TransportAddr(lAddr), EndPointId(1000)}, err
-}
+// 		// Close the socket
+// 		// Send a CloseSocket even though there are still connections *in both
+// 		// directions*
+// 		sendCloseSocket(1024, conn)
+// 		conn.Close()
+// 	}
+// 	err := forkServer(lAddr, handler)
+// 	return EndPointAddress{TransportAddr(lAddr), EndPointId(1000)}, err
+// }
 
 func mockUnnecessaryConnect(numThreads int, ourAddress EndPointAddress, theirAddress EndPointAddress, gotAccepted Notifier) {
 	for i := 0; i < numThreads; i++ {

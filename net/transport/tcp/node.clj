@@ -46,7 +46,8 @@
 (defrecord LocalChannel
     [^ChannelID channelID
      ^*LocalNode localNode
-     ^"chan Message" Queue])
+     ^"chan Message" Queue
+     ^"func (EndPointAddress)" onConnect])
     ; switchState (MVar LocalSwitchState))
 
 ; (struct LocalSwitchState
@@ -83,11 +84,14 @@
     (return &node))
 
 (defn NewLocalChannel ^*LocalChannel
-    [^*LocalNode localNode, ^ChannelID sid]
+    [^*LocalNode localNode, ^ChannelID sid, ^"func (EndPointAddress)" onConnect]
 
     (withValidLocalNodeState! localNode vst
-        (let localChannel (LocalChannel. sid localNode 
-                            (^Message chan 10)))
+        (let localChannel (map->LocalChannel {channelID sid, 
+                                              localNode localNode,
+                                              Queue (^Message chan 10)
+                                              onConnect onConnect})) 
+                            
         (when (== nil (get vst.localSwitches sid))
             (assoc vst.localSwitches sid &localChannel)
             (return &localChannel))                     
@@ -169,8 +173,12 @@
                                     
                                     (if (nil? pSwitch)
                                         (dissoc  st.incoming cid)
-                                        (assoc st.incoming cid 
-                                            (&IncomingConnection. pConn.theirAddress (&ToChannel. pSwitch)))))
+                                        (do
+                                            (assoc st.incoming cid 
+                                                (&IncomingConnection. pConn.theirAddress (&ToChannel. pSwitch)))
+                                            ;; call onConnect callback
+                                            (when (not (nil? pSwitch.onConnect))
+                                                (pSwitch.onConnect pConn.theirAddress)))))
 
                                 [ToChannel pSwitch]
                                 (do

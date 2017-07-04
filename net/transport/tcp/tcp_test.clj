@@ -1,154 +1,154 @@
 ;;; Test that the server gets a ConnectionClosed message when the client closes
 ;;; the socket without sending an explicit control message to the server first)
-(deftest earlyDisconnect
-    (let 
-        clientAddr (^EndPointAddress chan 1)
-        serverAddr (^EndPointAddress chan 1)
-        serverDone (newNotifier))
-    (println "testEarlyDisconnect")
+; (deftest earlyDisconnect
+;     (let 
+;         clientAddr (^EndPointAddress chan 1)
+;         serverAddr (^EndPointAddress chan 1)
+;         serverDone (newNotifier))
+;     (println "testEarlyDisconnect")
 
-    (go
-        (println "server")
-        (<- tp (CreateTransport "127.0.0.1:9999"))
-        (<- ep (tp.NewEndPoint 1000 nil))
-        (println "server" (ep.Address))
-        (>! serverAddr (ep.Address))
-        (let theirAddr (<! clientAddr))
+;     (go
+;         (println "server")
+;         (<- tp (CreateTransport "127.0.0.1:9999"))
+;         (<- ep (tp.NewEndPoint 1000 nil))
+;         (println "server" (ep.Address))
+;         (>! serverAddr (ep.Address))
+;         (let theirAddr (<! clientAddr))
 
-        ;; TEST 1: they connect to us, then drop the connection
-        (do
-            (let event (ep.Receive))
-            (println "server" event)
-            (assertConnectionOpend t event)
-            (let event2 (ep.Receive))
-            (println "want2 ErrorEvent" event2))
+;         ;; TEST 1: they connect to us, then drop the connection
+;         (do
+;             (let event (ep.Receive))
+;             (println "server" event)
+;             (assertConnectionOpend t event)
+;             (let event2 (ep.Receive))
+;             (println "want2 ErrorEvent" event2))
 
-        ;; TEST 2: after they dropped their connection to us, we now try to
-        ;; establish a connection to them. This should re-establish the broken
-        ;; TCP connection.)
-        (println "server" "Trying to connect to client" theirAddr)
-        (<- conn (ep.Dial theirAddr))
-        ; (println "server" conn)
+;         ;; TEST 2: after they dropped their connection to us, we now try to
+;         ;; establish a connection to them. This should re-establish the broken
+;         ;; TCP connection.)
+;         (println "server" "Trying to connect to client" theirAddr)
+;         (<- conn (ep.Dial theirAddr))
+;         ; (println "server" conn)
 
-        ;; TEST 3: To test the connection, we do a simple ping test; as before,
-        ;; however, the remote client won't close the connection nicely but just
-        ;; closes the socket)
-        (do
-            (SendStr conn "ping")
+;         ;; TEST 3: To test the connection, we do a simple ping test; as before,
+;         ;; however, the remote client won't close the connection nicely but just
+;         ;; closes the socket)
+;         (do
+;             (SendStr conn "ping")
 
-            (let event3 (ep.Receive))
-            (println "want3 ConnectionOpened" event3)
+;             (let event3 (ep.Receive))
+;             (println "want3 ConnectionOpened" event3)
                 
-            (let event4 (ep.Receive))
-            (println "want4 Received" event4)
+;             (let event4 (ep.Receive))
+;             (println "want4 Received" event4)
 
-            (let event5 (ep.Receive))
-            (println "want5 ErrorEvent" event5))
+;             (let event5 (ep.Receive))
+;             (println "want5 ErrorEvent" event5))
         
-        ;; TEST 4: A subsequent send on an already-open connection will now break
-        (SendStr conn "ping2")
+;         ;; TEST 4: A subsequent send on an already-open connection will now break
+;         (SendStr conn "ping2")
 
-        (notify serverDone)
-        (println "server exist"))
+;         (notify serverDone)
+;         (println "server exist"))
 
-    (go
-        (println "client")
-        (<- ourAddr (mockEarlyDisconnect "127.0.0.1:8888"))
-        (println "client" ourAddr)
+;     (go
+;         (println "client")
+;         (<- ourAddr (mockEarlyDisconnect "127.0.0.1:8888"))
+;         (println "client" ourAddr)
 
-        (>! clientAddr ourAddr)
-        (let theirAddr (<! serverAddr))
-        ;; Connect to the server
-        (<- sock (socketToEndPoint_ ourAddr theirAddr))
-        ;; Open a new connection
-        (sendCreateNewConnection 10002 sock)
+;         (>! clientAddr ourAddr)
+;         (let theirAddr (<! serverAddr))
+;         ;; Connect to the server
+;         (<- sock (socketToEndPoint_ ourAddr theirAddr))
+;         ;; Open a new connection
+;         (sendCreateNewConnection 10002 sock)
 
-        ;; Close the socket without closing the connection explicitly
-        ;; The server should receive an error event)
-        (sock.Close)
-        (println "client exit"))
+;         ;; Close the socket without closing the connection explicitly
+;         ;; The server should receive an error event)
+;         (sock.Close)
+;         (println "client exit"))
 
-    (wait serverDone))
+;     (wait serverDone))
 
 ;;; Test the behaviour of a premature CloseSocket request
-(deftest earlyCloseSocket
-    (let 
-        clientAddr (^EndPointAddress chan 1)
-        serverAddr (^EndPointAddress chan 1)
-        serverDone (newNotifier))
-    (println "testEarlyCloseSocket")
+; (deftest earlyCloseSocket
+;     (let 
+;         clientAddr (^EndPointAddress chan 1)
+;         serverAddr (^EndPointAddress chan 1)
+;         serverDone (newNotifier))
+;     (println "testEarlyCloseSocket")
     
-    (go     ; server
-        (println "server")
-        (<- tp (CreateTransport "127.0.0.1:9999"))
-        (<- ep (tp.NewEndPoint 1000 nil))
-        (println "server" (ep.Address))
-        (>! serverAddr (ep.Address))
-        (let theirAddr (<! clientAddr))
+;     (go     ; server
+;         (println "server")
+;         (<- tp (CreateTransport "127.0.0.1:9999"))
+;         (<- ep (tp.NewEndPoint 1000 nil))
+;         (println "server" (ep.Address))
+;         (>! serverAddr (ep.Address))
+;         (let theirAddr (<! clientAddr))
         
-        ;; TEST 1: they connect to us, then send a CloseSocket. Since we don't
-        ;; have any outgoing connections, this means we will agree to close the
-        ;; socket)
-        (do
-            (let event (ep.Receive))
-            (println "want ConnectionOpened" event)
-            (assertConnectionOpend t event)
-            (let event2 (ep.Receive))
-            (println "want2 ConnectionClosed" event2))
+;         ;; TEST 1: they connect to us, then send a CloseSocket. Since we don't
+;         ;; have any outgoing connections, this means we will agree to close the
+;         ;; socket)
+;         (do
+;             (let event (ep.Receive))
+;             (println "want ConnectionOpened" event)
+;             (assertConnectionOpend t event)
+;             (let event2 (ep.Receive))
+;             (println "want2 ConnectionClosed" event2))
             
-        ;; TEST 2: after they dropped their connection to us, we now try to
-        ;; establish a connection to them. This should re-establish the broken
-        ;; TCP connection.
-        (println "server" "Trying to connect to client" theirAddr)
-        (<- conn (ep.Dial theirAddr))
+;         ;; TEST 2: after they dropped their connection to us, we now try to
+;         ;; establish a connection to them. This should re-establish the broken
+;         ;; TCP connection.
+;         (println "server" "Trying to connect to client" theirAddr)
+;         (<- conn (ep.Dial theirAddr))
         
-        ;; TEST 3: To test the connection, we do a simple ping test; as before,
-        ;; however, the remote client won't close the connection nicely but just
-        ;; sends a CloseSocket -- except that now we *do* have outgoing
-        ;; connections, so we won't agree and hence will receive an error when
-        ;; the socket gets closed
-        (do
-            (SendStr conn "ping")
+;         ;; TEST 3: To test the connection, we do a simple ping test; as before,
+;         ;; however, the remote client won't close the connection nicely but just
+;         ;; sends a CloseSocket -- except that now we *do* have outgoing
+;         ;; connections, so we won't agree and hence will receive an error when
+;         ;; the socket gets closed
+;         (do
+;             (SendStr conn "ping")
 
-            (let event3 (ep.Receive))
-            (println "want3 ConnectionOpened" event3)
+;             (let event3 (ep.Receive))
+;             (println "want3 ConnectionOpened" event3)
                 
-            (let event4 (ep.Receive))
-            (println "want4 Received" event4)
+;             (let event4 (ep.Receive))
+;             (println "want4 Received" event4)
 
-            (let event5 (ep.Receive))
-            (println "want5 ConnectionClosed" event5)
+;             (let event5 (ep.Receive))
+;             (println "want5 ConnectionClosed" event5)
             
-            (let event6 (ep.Receive))
-            (println "want6 ErrorEvent" event6))
+;             (let event6 (ep.Receive))
+;             (println "want6 ErrorEvent" event6))
             
-        ;; TEST 4: A subsequent send on an already-open connection will now break
-        (SendStr conn "ping2")
+;         ;; TEST 4: A subsequent send on an already-open connection will now break
+;         (SendStr conn "ping2")
 
-        (notify serverDone)
-        (println "server exist"))
+;         (notify serverDone)
+;         (println "server exist"))
 
-    (go     ; client
-        (println "client")
-        (<- ourAddr (mockEarlyCloseSocket "127.0.0.1:8888"))
-        (println "client" ourAddr)
+;     (go     ; client
+;         (println "client")
+;         (<- ourAddr (mockEarlyCloseSocket "127.0.0.1:8888"))
+;         (println "client" ourAddr)
 
-        (>! clientAddr ourAddr)
-        (let theirAddr (<! serverAddr))
-        ;; Connect to the server
-        (<- sock (socketToEndPoint_ ourAddr theirAddr))
-        ;; Open a new connection
-        (println "client create connection 10003")
-        (sendCreateNewConnection 10003 sock)
+;         (>! clientAddr ourAddr)
+;         (let theirAddr (<! serverAddr))
+;         ;; Connect to the server
+;         (<- sock (socketToEndPoint_ ourAddr theirAddr))
+;         ;; Open a new connection
+;         (println "client create connection 10003")
+;         (sendCreateNewConnection 10003 sock)
 
-        ;; Send a CloseSocket without sending a closeconnecton
-        ;; The server should still receive a ConnectionClosed message
-        (println "client close socket 0")
-        (sendCloseSocket 0 sock)
-        (sock.Close)
-        (println "client exit"))
+;         ;; Send a CloseSocket without sending a closeconnecton
+;         ;; The server should still receive a ConnectionClosed message
+;         (println "client close socket 0")
+;         (sendCloseSocket 0 sock)
+;         (sock.Close)
+;         (println "client exit"))
 
-    (wait serverDone))
+;     (wait serverDone))
 
 ;;; Test the creation of a transport with an invalid address
 (deftest invalidAddress
