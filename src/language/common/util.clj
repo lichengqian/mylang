@@ -76,3 +76,7 @@
 (defn is-special-form? [s f]
   (and (seq? f)
        (= (first f) s)))
+
+;;; can use spec !
+(defn is-valid? [s]
+  #(s/valid? s %))

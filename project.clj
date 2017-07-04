@@ -3,7 +3,7 @@
   :url "TODO"
   :license {:name "TODO: Choose a license"
             :url "http://choosealicense.com/"}
-  :dependencies [[org.clojure/clojure "1.8.0"]
+  :dependencies [[org.clojure/clojure "1.9.0-alpha16"]
                  [com.stuartsierra/component "0.3.2"]
                  [org.clojure/tools.logging "0.3.1"]]
   :profiles {:dev {:dependencies [[org.clojure/tools.namespace "0.2.11"]
