@@ -11,7 +11,7 @@
   (:require
    [clojure.java.io :as io]
    [clojure.java.javadoc :refer [javadoc]]
-   [clojure.pprint :refer [pprint]]
+   [clojure.pprint :refer [cl-format pprint pp]]
    [clojure.reflect :refer [reflect]]
    [clojure.repl :refer [apropos dir doc find-doc pst source]]
    [clojure.set :as set]
@@ -21,6 +21,8 @@
    [clojure.tools.namespace.repl :refer [refresh refresh-all clear]]
    [com.stuartsierra.component :as component]
    [com.stuartsierra.component.repl :refer [reset set-init start stop system]]
+   [clojure.spec.alpha :as s]
+
    [clj-compiler])
   (:use  [mylang]
          [language.common]
@@ -41,7 +43,31 @@
 
 (set-language :language.golang/golang)
 
+(def ^:dynamic *src-dir* "net/transport/tcp")
+
+(defn t []
+  (sh "touch" "src/language/common.clj"))
+  
 (defn r []
-  (sh "touch" "src/clojure/language/golang.clj")
+  (t)
   (reset)
-  (go-make "net/transport/tcp"))
+  (go-make *src-dir*))
+
+(defn- copy-to [target-dir & files]
+  (doseq [f files]
+    (io/copy (io/file *src-dir* f) (io/file target-dir f))))
+
+(defn copy-go [target-dir]
+  (copy-to target-dir
+           "types.go"
+           "native.go"
+           "impl.go"
+           "facade.go"
+           "node.go"
+           "tcp_test.go"
+           "native_test.go"))
+
+;;; just for debug
+(def form (read-forms "net/transport/tcp/types.clj"))
+(def structs (filter (is-form? 'struct) form))
+
