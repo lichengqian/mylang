@@ -36,6 +36,42 @@
          (string/starts-with? (name (first f)) 
            (str "map->" (name s))))))
 
+;;; reduce a form by symbol 
+;;; when match symbol, call the function
+(defn symbol-reducer [& cases]
+  (let [branchs (->> (partition 2 cases)
+                    (map (fn [[s f]] [(keyword s) f]))
+                    (into {}))]
+      (fn [tree]
+        (if-let [f (and (seq? tree)
+                    (symbol? (first tree))
+                    (branchs (keyword (first tree))))]
+              (f tree)
+              tree))))
+
+;;; reduce a form by spec 
+;;; when match symbol, call the function
+(defn spec-reducer [& cases]
+  (let [branchs (->> (partition 2 cases))]
+      (fn [tree]
+        (loop [bs branchs]
+          (if (empty? bs)
+            tree
+            (let [[s f] (first bs)
+                  ret (s/conform s tree)]
+                (if (= :clojure.spec.alpha/invalid ret)
+                  (recur (rest bs))
+                  (f ret))))))))
+
+(defn prewalk*
+  "prewalk until no more changes"
+  [f form]
+  (loop [form2 form]
+    (let [expanded (walk/prewalk f form2)]
+      (if (= form2 expanded)
+        expanded
+        (recur expanded)))))
+
 ;;; see http://ferret-lang.org/#outline-container-sec-3
 
 (defn morph-form [tree pred f]

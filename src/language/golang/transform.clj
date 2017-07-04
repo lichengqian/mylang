@@ -35,9 +35,22 @@
     (filter (is-form? 'struct))
     (reduce init-struct-field form)))
 
+(defn reduce-go-form [form]
+  (prewalk*
+    (spec-reducer
+      ;; (nil? s) => (= s nil)
+      (s/cat :nil? #{'nil?} :expr any?)
+      (fn [m] `(~'= ~(:expr m) nil))
+      ;; (not (= a b)) => (not= a b)
+      (s/cat :not #{'not} :nest (s/spec (s/cat :nil? #{'=} :left any? :right any?)))
+      (fn [m] `(~'not= ~(get-in m [:nest :left]) ~(get-in m [:nest :right]))))
+
+    form))
+
 (defmethod transform ::golang
     [form]
     (->> form
         expand-macros-all
         init-all-struct-field
-        let->do))
+        let->do
+        reduce-go-form))

@@ -3,7 +3,8 @@
             [clojure.string :as string]
             [clojure.pprint :refer [cl-format]]
             [clojure.java.io :as io]
-            [clojure.walk :refer [prewalk]])
+            [clojure.walk :refer [prewalk]]
+            [clojure.spec.alpha :as s])
   (:use
    [language.common]
    [mylang]))
@@ -16,7 +17,7 @@
 (def infix-operators
   ^{:doc "Operators that should be converted to infix in expressions."
     :private true}
-  #{'+ '- '/ '* '% '== '= '< '> '<= '>= '!= '<< '>> '<<< '>>> '& '| '&& '||
+  #{'+ '- '/ '* '% '== '= 'not= '< '> '<= '>= '!= '<< '>> '<<< '>>> '& '| '&& '||
     'and 'or})
 
 (def arithmetic-operators
@@ -48,7 +49,8 @@
       '> "-gt"
       '<= "-le"
       '>= "-ge"
-      '= "=="})
+      '= "=="
+      'not= "!="})
 
 (def ^{:dynamic true :private true
        :doc "Control output of delimiters on sequences"}
