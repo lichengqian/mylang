@@ -3,6 +3,7 @@ package tcp
 import (
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"sync"
 )
@@ -115,7 +116,7 @@ func (ourEndPoint *LocalEndPoint) apiClose(theirEndPoint *RemoteEndPoint, connId
 	}()
 
 	if vst != nil {
-		vst.sendOn(func(conn net.Conn) {
+		vst.sendOn(func(conn io.Writer) {
 			sendCloseConnection(uint32(connId), conn)
 		})
 	}
@@ -138,7 +139,7 @@ func (ourEndPoint *LocalEndPoint) apiSend(theirEndPoint *RemoteEndPoint, connId 
 			if connAlive.IsSet() {
 				vst := &st._1
 				return func() {
-					vst.sendOn(func(conn net.Conn) {
+					vst.sendOn(func(conn io.Writer) {
 						connId.sendMsg(msg, conn)
 					})
 				}, nil
@@ -534,7 +535,7 @@ func handleIncomingMessages(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEnd
 					ourEndPoint.removeRemoteEndPoint(theirEndPoint)
 					theirState.value = RemoteEndPointClosed{}
 					return func() {
-						vst.sendOn(func(conn net.Conn) {
+						vst.sendOn(func(conn io.Writer) {
 							sendCloseSocket(uint32(vst._remoteLastIncoming), conn)
 						})
 					}
@@ -737,7 +738,7 @@ func (ourEndPoint *LocalEndPoint) createConnectionTo_go(theirAddress EndPointAdd
 			connId := vst._remoteNextConnOutId
 			vst._remoteNextConnOutId = connId + 1
 			action = func() {
-				vst.sendOn(func(conn net.Conn) {
+				vst.sendOn(func(conn io.Writer) {
 					sendCreateNewConnection(uint32(connId), conn)
 				})
 			}
@@ -930,7 +931,7 @@ func (ourEndPoint *LocalEndPoint) closeIfUnused(theirEndPoint *RemoteEndPoint) {
 			if vst._remoteOutgoing == 0 && len(vst._remoteIncoming) == 0 {
 				theirState.value = &RemoteEndPointClosing{newNotifier(), *vst}
 				return func() {
-					vst.sendOn(func(conn net.Conn) {
+					vst.sendOn(func(conn io.Writer) {
 						sendCloseSocket(uint32(vst._remoteLastIncoming), conn)
 					})
 				}

@@ -1,3 +1,4 @@
+(import "io")
 
 (type TransportAddr String)
 
@@ -160,7 +161,7 @@
 (impl ^*ValidRemoteEndPointState vst
     (defn sendOn 
         "| Send a payload over a heavyweight connection (thread safe)"
-        [^"func (net.Conn)" sender]
+        [^"func (io.Writer)" sender]
         (lock! vst.remoteSendLock)
         (sender vst.remoteConn)))
 
