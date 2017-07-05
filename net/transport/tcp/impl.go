@@ -1040,7 +1040,7 @@ func (tp *TCPTransport) createLocalEndPoint(epid EndPointId, shake ShakeHand) (*
 				value LocalEndPointState
 				sync.Mutex
 			}{value: st},
-			localQueue: make(chan Event, 10),
+			localQueue: make(chan Event, defaultEndPointQueueCapacity),
 			shakeHand:  shake,
 		}
 		return endpoints[epid], nil

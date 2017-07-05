@@ -43,6 +43,8 @@
         
         (return nil)))
 
+(def defaultChannelQueueCapacity 4096)
+
 (defrecord LocalChannel
     [^ChannelID channelID
      ^*LocalNode localNode
@@ -89,7 +91,7 @@
     (withValidLocalNodeState! localNode vst
         (let localChannel (map->LocalChannel {channelID sid, 
                                               localNode localNode,
-                                              Queue (^Message chan 10)
+                                              Queue (^Message chan defaultChannelQueueCapacity)
                                               onConnect onConnect})) 
                             
         (when (== nil (get vst.localSwitches sid))

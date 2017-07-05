@@ -45,10 +45,10 @@
       'and "&&"
       '|| "||"
       'or "||"
-      '< "-lt"
-      '> "-gt"
-      '<= "-le"
-      '>= "-ge"
+      '< "<"
+      '> ">"
+      '<= "<="
+      '>= ">="
       '= "=="
       'not= "!="})
 
@@ -115,7 +115,8 @@
   'import [& paths] 
   (doseq [path paths]
       (add-import path))
-  'not [expr] (str "!(" (emit expr) ")"))
+  'not [expr] (str "!(" (emit expr) ")")
+  'def [n v] (cl-format nil "const ~A = ~A" n v))
 
 (defn- emit-monad-binding
   ([v expr]

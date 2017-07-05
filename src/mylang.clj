@@ -81,7 +81,7 @@
   #{'ns 'import 
     'struct 'encode! 'decode!
     'type 'enum 'val 'val- 'main 
-    'defrecord 'defn 'defn- 'fn 'defmacro
+    'def 'defrecord 'defn 'defn- 'fn 'defmacro
     'impl             ; struct method support
     'deferr           ; error support
     'deftest 'tlog ; test support

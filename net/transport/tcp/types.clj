@@ -28,6 +28,8 @@
     _localEndPoints (Map EndPointId *LocalEndPoint)
     _nextEndPointId EndPointId)
 
+(def defaultEndPointQueueCapacity 4096)
+
 (struct LocalEndPoint
     localAddress EndPointAddress
     localState  (MVar LocalEndPointState)
