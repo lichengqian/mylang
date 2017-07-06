@@ -1,4 +1,5 @@
 (import "io")
+(import "bufio")
 
 (type TransportAddr String)
 
@@ -93,14 +94,19 @@
     RemoteEndPointClosed
     (RemoteEndPointFailed Error))
 
+(def minWriteBufferSize 65536)
+(def flushThrottleMS 100)
+
 (struct ValidRemoteEndPointState
     _remoteOutgoing LightweightConnectionId
     _remoteIncoming (Set LightweightConnectionId)
     _remoteLastIncoming LightweightConnectionId
     _remoteNextConnOutId LightweightConnectionId
     remoteConn Conn
-    remoteSendLock Lock)
-    
+    remoteSendLock Lock
+    ;; for batch send
+    flushTimer   *ThrottleTimer ; flush writes as necessary but throttled.
+    bufWriter   *bufio.Writer)
 
 ;;; transport definition
 
@@ -158,12 +164,35 @@
 (message! ControlHeader)
 (message! ConnectionRequestResponse)
 
+;;; struct methods
+(impl ^*LocalEndPoint ourEndPoint
+    (defn enqueue 
+        [^Event e]
+        (>! ourEndPoint.localQueue e)))
+
+
 (impl ^*ValidRemoteEndPointState vst
     (defn sendOn 
         "| Send a payload over a heavyweight connection (thread safe)"
         [^"func (io.Writer)" sender]
         (lock! vst.remoteSendLock)
-        (sender vst.remoteConn)))
+        (sender vst.bufWriter)
+        (vst.flushTimer.Set))
+
+    (defn flush []
+        (lock! vst.remoteSendLock)
+        (println "flushing...")
+        (let err (vst.bufWriter.Flush))
+        (when (not= err nil)
+            (println "warn flush failed " err)))
+                
+    (defn sendRoutine
+        "batch send"
+        []
+        (forever
+            (<! vst.flushTimer.Ch)
+            (vst.flush))))
+            
 
 ;;; constructor
 (defn newTransportState ^TransportState []

@@ -26,6 +26,13 @@ func notify(n Notifier) {
 	close(n)
 }
 
+func (n Notifier) TryNotify() {
+	select {
+	case n <- struct{}{}:
+	default:
+	}
+}
+
 type AtomicBool int32
 
 // NewBool creates an AtomicBool with given default value
@@ -244,6 +251,7 @@ func tryShutdownSocketBoth(conn net.Conn) {
 }
 
 func sendCreateNewConnection(lcid uint32, w io.Writer) {
+	fmt.Println("sending CreateNewConnection", lcid)
 	WriteUint32(uint32(CreateNewConnection{}.tagControlHeader()), w)
 	WriteUint32(lcid, w)
 }

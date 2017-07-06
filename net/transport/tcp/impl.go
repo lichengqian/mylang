@@ -1,11 +1,13 @@
 package tcp
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"io"
 	"net"
 	"sync"
+	"time"
 )
 
 func createTCPTransport(lAddr string) (*TCPTransport, error) {
@@ -339,10 +341,13 @@ func (ourEndPoint *LocalEndPoint) handleConnectionRequest(theirAddress *EndPoint
 		remoteConn:           conn,
 		_remoteNextConnOutId: firstNonReservedLightweightConnectionId,
 		_remoteIncoming:      make(map[LightweightConnectionId]struct{}, 100),
+		flushTimer:           NewThrottleTimer("flush", flushThrottleMS*time.Millisecond),
+		bufWriter:            bufio.NewWriterSize(conn, minWriteBufferSize),
 	}}
 	writeConnectionRequestResponse(ConnectionRequestAccepted{}, conn)
 	ourEndPoint.resolveInit(theirEndPoint, vst)
 
+	go (&vst._1).sendRoutine()
 	handleIncomingMessages(ourEndPoint, theirEndPoint)
 }
 
@@ -423,10 +428,6 @@ func handleIncomingMessages(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEnd
 		}
 	}
 
-	enqueue := func(e Event) {
-		ourEndPoint.localQueue <- e
-	}
-
 	// Read a message and output it on the endPoint's channel. By rights we
 	// should verify that the connection ID is valid, but this is unnecessary
 	// overhead
@@ -436,7 +437,7 @@ func handleIncomingMessages(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEnd
 			return err
 		}
 		event := &Received{connId(lcid), msg}
-		enqueue(event)
+		ourEndPoint.enqueue(event)
 		return nil
 	}
 
@@ -472,7 +473,7 @@ func handleIncomingMessages(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEnd
 			ourEndPoint.relyViolation("createNewConnection (closed)")
 		}
 
-		enqueue(&ConnectionOpened{connId(lcid), theirAddress})
+		ourEndPoint.enqueue(&ConnectionOpened{connId(lcid), theirAddress})
 		return nil
 	}
 
@@ -504,7 +505,7 @@ func handleIncomingMessages(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEnd
 			ourEndPoint.relyViolation("closeConnection (closed)")
 		}
 
-		enqueue(&ConnectionClosed{connId(lcid)})
+		ourEndPoint.enqueue(&ConnectionClosed{connId(lcid)})
 		return nil
 	}
 
@@ -525,7 +526,7 @@ func handleIncomingMessages(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEnd
 				vst := &st._1
 				fmt.Println(vst)
 				for k := range vst._remoteIncoming {
-					enqueue(&ConnectionClosed{connId(k)})
+					ourEndPoint.enqueue(&ConnectionClosed{connId(k)})
 				}
 				if uint32(vst._remoteOutgoing) > 0 || uint32(lastReceivedId) != uint32(lastSentId(vst)) {
 					fmt.Println("we still have connections, can not close socket", vst._remoteOutgoing)
@@ -559,7 +560,7 @@ func handleIncomingMessages(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEnd
 				if vst._remoteOutgoing > 0 {
 					code := &EventConnectionLost{theirAddress}
 					msg := "socket closed prematurely by peer"
-					enqueue(&ErrorEvent{code, errors.New(msg)})
+					ourEndPoint.enqueue(&ErrorEvent{code, errors.New(msg)})
 				}
 				ourEndPoint.removeRemoteEndPoint(theirEndPoint)
 				theirState.value = RemoteEndPointClosed{}
@@ -586,12 +587,12 @@ func handleIncomingMessages(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEnd
 	closeRemoteEndPoint := func(vst *ValidRemoteEndPointState) {
 		// close incoming connections
 		for k := range vst._remoteIncoming {
-			enqueue(&ConnectionClosed{connId(k)})
+			ourEndPoint.enqueue(&ConnectionClosed{connId(k)})
 		}
 		// report the endpoint as gone if we have any outgoing connections
 		if vst._remoteOutgoing > 0 {
 			code := &EventConnectionLost{theirAddress}
-			enqueue(&ErrorEvent{code, errors.New("The remote endpoint was closed.")})
+			ourEndPoint.enqueue(&ErrorEvent{code, errors.New("The remote endpoint was closed.")})
 		}
 	}
 
@@ -671,6 +672,7 @@ func handleIncomingMessages(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEnd
 			case CloseEndPoint:
 				ourEndPoint.removeRemoteEndPoint(theirEndPoint)
 				closeEndPoint()
+				//TODO:: need exit for loop???
 			default:
 				err := errors.New("Invalid control request")
 				return err
@@ -681,7 +683,7 @@ func handleIncomingMessages(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEnd
 	if err != nil {
 		prematureExit(err)
 	}
-	fmt.Println("handleIncomingMessages exit!---")
+	fmt.Println("handleIncomingMessages exit!---", theirAddress)
 }
 
 // | Create a connection to a remote endpoint
@@ -783,8 +785,12 @@ func (ourEndPoint *LocalEndPoint) setupRemoteEndPoint(theirEndPoint *RemoteEndPo
 			remoteConn:           sock,
 			_remoteIncoming:      make(map[LightweightConnectionId]struct{}),
 			_remoteNextConnOutId: firstNonReservedLightweightConnectionId,
+			flushTimer:           NewThrottleTimer("flush", flushThrottleMS*time.Millisecond),
+			bufWriter:            bufio.NewWriterSize(sock, minWriteBufferSize),
 		}}
 		ourEndPoint.resolveInit(theirEndPoint, st)
+
+		go (&st._1).sendRoutine()
 		afterAccept()
 	case ConnectionRequestInvalid:
 		defer sock.Close()
