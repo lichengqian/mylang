@@ -672,7 +672,8 @@ func handleIncomingMessages(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEnd
 			case CloseEndPoint:
 				ourEndPoint.removeRemoteEndPoint(theirEndPoint)
 				closeEndPoint()
-				//TODO:: need exit for loop???
+				//exit for loop
+				return nil
 			default:
 				err := errors.New("Invalid control request")
 				return err
