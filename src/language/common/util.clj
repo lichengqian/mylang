@@ -109,6 +109,13 @@
          (symbol? (first f))
          (some true? (map #(= % (simple-symbol (first f))) s)))))
 
+(defn is-not-form? [& s]
+  (fn [f]
+    (not
+      (and (seq? f)
+         (symbol? (first f))
+         (some true? (map #(= % (simple-symbol (first f))) s))))))
+  
 (defn is-special-form? [s f]
   (and (seq? f)
        (= (first f) s)))

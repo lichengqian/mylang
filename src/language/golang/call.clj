@@ -36,12 +36,13 @@
                 ", "
                 (emit k)))))
 
-(defmethod go-call 'finally
-    [_ body finalizer]
-    (let [_defer (str "defer " (emit finalizer))]
-        `((fn []
-            (native ~_defer)
-            ~body))))
+(defmethod go-call 'defer
+    [_ & expr]
+    (if (= 1 (count expr))
+        (str "defer " (emit (first expr)))
+        (str "defer func() " 
+            (brace (emit-do expr))
+            "()")))
 
 (defmethod go-call 'forever
     [_ & body]

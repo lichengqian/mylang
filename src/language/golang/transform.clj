@@ -35,6 +35,31 @@
     (filter (is-form? 'struct))
     (reduce init-struct-field form)))
 
+(s/def ::catch-clause
+  (s/cat  :catch #{'catch} 
+          :classname symbol?
+          :name symbol?
+          :expr (s/* any?)))
+
+(s/def ::finally-clause
+  (s/cat  :finally #{'finally}
+          :expr (s/* any?)))
+          
+;; try catch finally
+(s/def ::try-clause
+      (s/cat  :try #{'try} 
+              :expr (s/+ (is-not-form? 'catch 'finally))
+              :catch-clause (s/* (s/spec ::catch-clause))
+              :finally-clause (s/? (s/spec ::finally-clause))))
+
+(defn try-clause->defer
+  [try-clause]
+  ; (println "try-transfor->" try-clause)
+  (let []
+    `(do
+      (defer ~@(get-in try-clause [:finally-clause :expr]))
+      ~@(:expr try-clause))))
+
 (defn reduce-go-form [form]
   (prewalk*
     (spec-reducer
@@ -43,8 +68,13 @@
       (fn [m] `(~'= ~(:expr m) nil))
       ;; (not (= a b)) => (not= a b)
       (s/cat :not #{'not} :nest (s/spec (s/cat :nil? #{'=} :left any? :right any?)))
-      (fn [m] `(~'not= ~(get-in m [:nest :left]) ~(get-in m [:nest :right]))))
-
+      (fn [m] `(~'not= ~(get-in m [:nest :left]) ~(get-in m [:nest :right])))
+      ;;try -> defer
+      ::try-clause
+      try-clause->defer
+      ;; (go (do xxx)) => (go xxx)
+      (s/cat :go #{'go} :do (is-form? 'do))
+      (fn [m] `(go ~@(rest (:do m)))))
     form))
 
 (defmethod transform ::golang

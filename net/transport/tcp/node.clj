@@ -76,12 +76,12 @@
                     (>! node.localCtrlChan (NCMsg. (node.localEndPoint.Address) (SigShutdown.)))))
 
     ;; Once the NC terminates, the endpoint isn't much use,
-    (go (finally (nodeController &node)
-                 (node.localEndPoint.Close)))
+    (go (try (nodeController &node)
+             (finally (node.localEndPoint.Close))))
 
     ;; whilst a closed/failing endpoint will terminate the NC
-    (go (finally (handleNodeMessages &node)
-                 (stopNC)))
+    (go (try (handleNodeMessages &node)
+             (finally (stopNC))))
 
     (return &node))
 

@@ -1,6 +1,7 @@
 package tcp
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"testing"
@@ -115,4 +116,17 @@ func mockUnnecessaryConnect(numThreads int, ourAddress EndPointAddress, theirAdd
 		}(i)
 	}
 	// fmt.Println("exit mockUnnecessaryConnect")
+}
+
+func TestRecover(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("recover from ", r)
+		}
+		fmt.Println("closing resource")
+	}()
+
+	// _acc := 0
+
+	panic(errors.New("hello, error"))
 }

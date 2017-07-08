@@ -86,7 +86,7 @@
     'deferr           ; error support
     'deftest 'tlog ; test support
     'go 'chan '<! '>!         ; concurrent support
-    '<- 'return 'throw  ; io monad supoort
+    '<- 'return 'throw 'try 'catch  ; io monad supoort
     'native 'native-declare
     'loop 'recur        ; loop support
     'if 'when 'match 'aget 'aset 'set! 'let 'let*
