@@ -9,17 +9,7 @@ import (
 )
 
 func createTCPTransport(lAddr string) (*TCPTransport, error) {
-	state := newTransportState()
-
-	tp := &TCPTransport{
-		transportAddr: TransportAddr(lAddr),
-		transportState: struct {
-			value TransportState
-			sync.Mutex
-		}{
-			value: state,
-		},
-	}
+	tp := newTCPTransport(lAddr)
 
 	err := tp.forkServer(func(conn net.Conn) {
 		tp.handleConnectionRequest(conn)

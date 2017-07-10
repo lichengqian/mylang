@@ -33,8 +33,11 @@
   (fn [f]
     (and (seq? f)
          (symbol? (first f))
-         (string/starts-with? (name (first f)) 
-           (str "map->" (name s))))))
+         (or
+            (string/starts-with? (name (first f)) 
+              (str "map->" (name s)))
+            (string/starts-with? (name (first f)) 
+              (str "map->&" (name s)))))))
 
 ;;; reduce a form by symbol 
 ;;; when match symbol, call the function

@@ -208,6 +208,12 @@
     (&TransPortValid.
         (map->ValidTransportState {_nextEndPointId 0}))))
 
+(defn newTCPTransport ^*TCPTransport [^string lAddr]
+    (let state (newTransportState))
+    (return
+        (map->&TCPTransport {transportAddr (TransportAddr lAddr)
+                             transportState (^TransportState newMVar state)})))
+
 (defn newLocalEndPointState ^LocalEndPointState []
   (return
     (&LocalEndPointValid.
