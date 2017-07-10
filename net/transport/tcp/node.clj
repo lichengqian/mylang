@@ -241,7 +241,7 @@
     (<- conn (connBetween node LocalChannel.channelID to))
     (<- bytes (conn.Send payload))
     (println bytes)
-    (>! node.localCtrlChan (NCMsg. to (&Died. to (DiedDisconnect.))))
+    ; (>! node.localCtrlChan (NCMsg. to (&Died. to (DiedDisconnect.))))
     (return))
 
 (defn setupConnBetween ^*Connection

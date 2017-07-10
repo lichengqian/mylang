@@ -52,3 +52,16 @@
     (let [sig (with-meta [] (meta f))]
         `((fn ~sig (lock! ~v) ~@body))))
 
+(defmethod go-call 'case
+    [f v c & body]
+    (str "case "
+        (if (= v 'nil) "" 
+            (str (emit v) " := "))
+        (emit c)
+        ": \n"
+        (emit-do body)))
+
+(defmethod go-call 'select
+    [f & cases]
+    (str "select "
+        (brace (emit-do cases))))

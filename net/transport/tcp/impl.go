@@ -1,13 +1,11 @@
 package tcp
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
 	"io"
 	"net"
 	"sync"
-	"time"
 )
 
 func createTCPTransport(lAddr string) (*TCPTransport, error) {
@@ -337,13 +335,7 @@ func (ourEndPoint *LocalEndPoint) handleConnectionRequest(theirAddress *EndPoint
 			return
 		}
 	}
-	vst := &RemoteEndPointValid{ValidRemoteEndPointState{
-		remoteConn:           conn,
-		_remoteNextConnOutId: firstNonReservedLightweightConnectionId,
-		_remoteIncoming:      make(map[LightweightConnectionId]struct{}, 100),
-		flushTimer:           NewThrottleTimer("flush", flushThrottleMS*time.Millisecond),
-		bufWriter:            bufio.NewWriterSize(conn, minWriteBufferSize),
-	}}
+	vst := newRemoteEndPointValid(conn)
 	writeConnectionRequestResponse(ConnectionRequestAccepted{}, conn)
 	ourEndPoint.resolveInit(theirEndPoint, vst)
 
@@ -782,13 +774,7 @@ func (ourEndPoint *LocalEndPoint) setupRemoteEndPoint(theirEndPoint *RemoteEndPo
 
 	switch rsp.(type) {
 	case ConnectionRequestAccepted:
-		st := &RemoteEndPointValid{ValidRemoteEndPointState{
-			remoteConn:           sock,
-			_remoteIncoming:      make(map[LightweightConnectionId]struct{}),
-			_remoteNextConnOutId: firstNonReservedLightweightConnectionId,
-			flushTimer:           NewThrottleTimer("flush", flushThrottleMS*time.Millisecond),
-			bufWriter:            bufio.NewWriterSize(sock, minWriteBufferSize),
-		}}
+		st := newRemoteEndPointValid(sock)
 		ourEndPoint.resolveInit(theirEndPoint, st)
 
 		go (&st._1).sendRoutine()

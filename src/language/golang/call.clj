@@ -83,7 +83,7 @@
 
         (string/starts-with? (str name) "map->")  ; struct constructor 
         (do
-            (println (into [] (first args)))
+            ; (println (into [] (first args)))
             (->> (into [] (first args))
                 (map (fn [[k v]] (str (emit k) ": " (emit v) ",\n")))
                 string/join

@@ -61,7 +61,7 @@
 
 (defn- emit-mapmaptype
   [alias [_ k1 [_ k2 v :as t2] :as t]]
-  (println alias k1 k2 v)
+  ; (println alias k1 k2 v)
   (let [str-t (emit-type t)
         str-decl (str "type " (emit alias) " " str-t)
         str-new
@@ -98,7 +98,7 @@
   
 (defn- emit-mapsettype
   [alias [_ k1 [_ k2 :as t2] :as t]]
-  (println alias k1 k2)
+  ; (println alias k1 k2)
   (let [str-t (emit-type t)
         str-decl (str "type " (emit alias) " " str-t)
         str-new

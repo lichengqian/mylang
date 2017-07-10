@@ -19,7 +19,7 @@
    (let [new-fields   (->> 
                         (partition 2 struct-fields)
                         (mapcat (fn [[v t]]
-                                  (if (maptype? t)
+                                  (if ((is-form? 'Map 'Set) t)
                                     [v `(native ~(str "make(" (emit-type t) ")"))]
                                     []))))]
       ; (println "init struct " struct-name "new-fields" new-fields)
@@ -60,6 +60,31 @@
       (defer ~@(get-in try-clause [:finally-clause :expr]))
       ~@(:expr try-clause))))
 
+(s/def ::channel-val
+  (s/tuple
+    (s/or :wildchar #{'_}
+          :value  symbol?)))
+
+(s/def ::channel-op
+  (s/cat :chan symbol? 
+         :expr (s/spec
+                  (s/cat :result ::channel-val :exprs (s/* any?)))))
+
+(s/def ::alt!
+  (s/cat  :alt! #{'alt!}
+          :result-expr (s/* ::channel-op)))
+
+(defn channel-op->case
+  [m]
+  (let [[t v] (get-in m [:expr :result 0])
+        val (if (= t :wildchar) 'nil v)]
+      `(case ~val (<! ~(:chan m))
+          ~@(get-in m [:expr :exprs]))))
+
+(defn alt!->select
+  [m]
+  `(select ~@(map channel-op->case (:result-expr m))))
+
 (defn reduce-go-form [form]
   (prewalk*
     (spec-reducer
@@ -74,7 +99,10 @@
       try-clause->defer
       ;; (go (do xxx)) => (go xxx)
       (s/cat :go #{'go} :do (is-form? 'do))
-      (fn [m] `(go ~@(rest (:do m)))))
+      (fn [m] `(go ~@(rest (:do m))))
+      ;; (alt! ) => (select )
+      ::alt!
+      alt!->select)
     form))
 
 (defmethod transform ::golang

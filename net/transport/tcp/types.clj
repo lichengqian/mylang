@@ -1,5 +1,6 @@
 (import "io")
 (import "bufio")
+(import "time")
 
 (type TransportAddr String)
 
@@ -97,14 +98,17 @@
 (def minWriteBufferSize 65536)
 (def flushThrottleMS 100)
 
+(type Sender "func (io.Writer)")
+
 (struct ValidRemoteEndPointState
     _remoteOutgoing LightweightConnectionId
     _remoteIncoming (Set LightweightConnectionId)
     _remoteLastIncoming LightweightConnectionId
     _remoteNextConnOutId LightweightConnectionId
     remoteConn Conn
-    remoteSendLock Lock
+    ; remoteSendLock Lock
     ;; for batch send
+    sendQueue    (Chan Sender)  ; send queue
     flushTimer   *ThrottleTimer ; flush writes as necessary but throttled.
     bufWriter   *bufio.Writer)
 
@@ -174,13 +178,14 @@
 (impl ^*ValidRemoteEndPointState vst
     (defn sendOn 
         "| Send a payload over a heavyweight connection (thread safe)"
-        [^"func (io.Writer)" sender]
-        (lock! vst.remoteSendLock)
-        (sender vst.bufWriter)
-        (vst.flushTimer.Set))
+        [^Sender sender]
+        ; (lock! vst.remoteSendLock)
+        ; (sender vst.bufWriter)
+        (>! vst.sendQueue sender))
+        ; (vst.flushTimer.Set))
 
     (defn flush []
-        (lock! vst.remoteSendLock)
+        ; (lock! vst.remoteSendLock)
         (println "flushing...")
         (let err (vst.bufWriter.Flush))
         (when (not= err nil)
@@ -190,8 +195,11 @@
         "batch send"
         []
         (forever
-            (<! vst.flushTimer.Ch)
-            (vst.flush))))
+            (alt!
+                vst.flushTimer.Ch ([_] (vst.flush))
+                vst.sendQueue ([sender]
+                               (sender vst.bufWriter)
+                               (vst.flushTimer.Set))))))
             
 
 ;;; constructor
@@ -206,4 +214,11 @@
         (map->ValidLocalEndPointState {_localNextConnOutId firstNonReservedLightweightConnectionId,
                                        _nextConnInId       firstNonReservedHeavyweightConnectionId}))))
         
-    
+(defn newRemoteEndPointValid ^*RemoteEndPointValid [^Conn conn]
+    (return
+      (&RemoteEndPointValid.
+        (map->ValidRemoteEndPointState {remoteConn conn
+                                        _remoteNextConnOutId firstNonReservedLightweightConnectionId
+                                        sendQueue (native "make(chan Sender, 1000)")
+                                        flushTimer (NewThrottleTimer "flush" flushThrottleMS*time.Millisecond)
+                                        bufWriter (bufio.NewWriterSize conn minWriteBufferSize)}))))
