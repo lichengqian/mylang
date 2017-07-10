@@ -1120,14 +1120,6 @@ func (transport *TCPTransport) internalSocketBetween(ourAddress EndPointAddress,
 // Constants                                                                  --
 //------------------------------------------------------------------------------
 
-const (
-	// | We reserve a bunch of connection IDs for control messages
-	firstNonReservedLightweightConnectionId = LightweightConnectionId(1024)
-
-	// | We reserve some connection IDs for special heavyweight connections
-	firstNonReservedHeavyweightConnectionId = HeavyweightConnectionId(1)
-)
-
 // | Parameters for setting up the TCP transport
 var (
 	// | Maximum length (in bytes) for a peer's address.

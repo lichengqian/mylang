@@ -214,6 +214,14 @@
         (map->ValidLocalEndPointState {_localNextConnOutId firstNonReservedLightweightConnectionId,
                                        _nextConnInId       firstNonReservedHeavyweightConnectionId}))))
         
+;; | We reserve a bunch of connection IDs for control messages
+(def firstNonReservedLightweightConnectionId 
+    (LightweightConnectionId 1024))
+
+;; | We reserve some connection IDs for special heavyweight connections
+(def firstNonReservedHeavyweightConnectionId 
+    (HeavyweightConnectionId 1))
+  
 (defn newRemoteEndPointValid ^*RemoteEndPointValid [^Conn conn]
     (return
       (&RemoteEndPointValid.

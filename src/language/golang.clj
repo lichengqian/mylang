@@ -116,7 +116,7 @@
   (doseq [path paths]
       (add-import path))
   'not [expr] (str "!(" (emit expr) ")")
-  'def [n v] (cl-format nil "const ~A = ~A" n v))
+  'def [n v] (cl-format nil "const ~A = ~A" n (emit v)))
 
 (defn- emit-monad-binding
   ([v expr]
