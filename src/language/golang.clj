@@ -4,7 +4,9 @@
             [clojure.pprint :refer [cl-format]]
             [clojure.java.io :as io]
             [clojure.walk :refer [prewalk]]
-            [clojure.spec.alpha :as s])
+            [clojure.spec.alpha :as s]
+            [cats.builtin]
+            [cats.core :as m])
   (:use
    [language.common]
    [mylang]))
