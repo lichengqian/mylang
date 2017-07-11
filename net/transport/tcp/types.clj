@@ -341,4 +341,39 @@
                 (println "close unused connection to ", theirEndPoint.remoteAddress)
                 (vst.sendOn
                     (fn [^io.Writer conn]
-                        (sendCloseSocket (uint32 vst._remoteLastIncoming) conn)))))))
+                        (sendCloseSocket (uint32 vst._remoteLastIncoming) conn))))))
+
+    (defn getRemoteEndPoint
+        ^"*RemoteEndPoint, error"
+        [^EndPointAddress theirAddress]
+        (let ourState &ourEndPoint.localState)
+        (matchMVar! ourState
+            [LocalEndPointValid *vst]
+            (return (get vst._localConnections theirAddress) nil))
+        (return nil ErrEndPointClosed))
+    ;; | Reset a remote endpoint if it is in Invalid mode
+    ;;
+    ;; If the remote endpoint is currently in broken state, and
+    ;;
+    ;;   - a user calls the API function 'connect', or and the remote endpoint is
+    ;;   - an inbound connection request comes in from this remote address
+    ;;
+    ;; we remove the remote endpoint first.
+    ;;
+    ;; Throws a TransportError ConnectFailed exception if the local endpoint is
+    ;; closed.
+    (defn resetIfBroken
+        [^EndPointAddress theirAddress]
+        (<- theirEndPoint
+            (ourEndPoint.getRemoteEndPoint theirAddress))
+        (when (not (nil? theirEndPoint))
+            (let theirState &theirEndPoint.remoteState)
+            (matchMVar! theirState
+                [RemoteEndPointInvalid]
+                (ourEndPoint.removeRemoteEndPoint theirEndPoint)
+                [RemoteEndPointFailed e]
+                (do
+                    (println "resetIfBroken" e)
+                    (ourEndPoint.removeRemoteEndPoint theirEndPoint))))
+        (return nil)))
+            

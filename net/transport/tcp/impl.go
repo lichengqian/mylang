@@ -819,51 +819,6 @@ func (ourEndPoint *LocalEndPoint) findRemoteEndPoint(theirAddress EndPointAddres
 	return nil, false, nil
 }
 
-// | Reset a remote endpoint if it is in Invalid mode
-//
-// If the remote endpoint is currently in broken state, and
-//
-//   - a user calls the API function 'connect', or and the remote endpoint is
-//   - an inbound connection request comes in from this remote address
-//
-// we remove the remote endpoint first.
-//
-// Throws a TransportError ConnectFailed exception if the local endpoint is
-// closed.
-func (ourEndPoint *LocalEndPoint) resetIfBroken(theirAddress EndPointAddress) error {
-	theirEndPoint, err := func() (*RemoteEndPoint, error) {
-		ourState := &ourEndPoint.localState
-		ourState.Lock()
-		defer ourState.Unlock()
-
-		switch st := ourState.value.(type) {
-		case *LocalEndPointValid:
-			vst := &st._1
-			return vst._localConnections[theirAddress], nil
-		default:
-			return nil, ErrEndPointClosed
-		}
-	}()
-
-	if err != nil {
-		return err
-	}
-
-	if theirEndPoint == nil {
-		return nil
-	}
-
-	theirState := &theirEndPoint.remoteState
-	theirState.Lock()
-	theirState.Unlock()
-
-	switch theirState.value.(type) {
-	case *RemoteEndPointInvalid, *RemoteEndPointFailed:
-		ourEndPoint.removeRemoteEndPoint(theirEndPoint)
-	}
-	return nil
-}
-
 // Resolve an endpoint currently in 'Init' state
 func (ourEndPoint *LocalEndPoint) resolveInit(theirEndPoint *RemoteEndPoint, newState RemoteState) error {
 	theirEndPoint.remoteState.Lock()
