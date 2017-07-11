@@ -105,7 +105,10 @@
 
 (defmethod emit-infix ::golang [type [operator & args]]
   (when (< (count args) 2)
-    (throw (Exception. "Less than 2 infix arguments not supported yet.")))
+    (throw (Exception. 
+              (cl-format nil 
+                "Less than 2 infix arguments not supported yet.~A ~A"
+                operator args))))
   
   (let [[open close] ["(" ")"]]
     (str open (emit (first args)) " "

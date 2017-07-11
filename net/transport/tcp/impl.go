@@ -861,35 +861,6 @@ func (ourEndPoint *LocalEndPoint) findRemoteEndPoint(theirAddress EndPointAddres
 	return nil, false, nil
 }
 
-// | Send a CloseSocket request if the remote endpoint is unused
-func (ourEndPoint *LocalEndPoint) closeIfUnused(theirEndPoint *RemoteEndPoint) {
-	theirState := &theirEndPoint.remoteState
-
-	action := func() func() {
-		theirState.Lock()
-		theirState.Unlock()
-
-		switch st := theirState.value.(type) {
-		case *RemoteEndPointValid:
-			vst := &st._1
-			if vst._remoteOutgoing == 0 && len(vst._remoteIncoming) == 0 {
-				theirState.value = &RemoteEndPointClosing{newNotifier(), *vst}
-				return func() {
-					vst.sendOn(func(conn io.Writer) {
-						sendCloseSocket(uint32(vst._remoteLastIncoming), conn)
-					})
-				}
-			}
-		}
-		return nil
-	}()
-
-	if action != nil {
-		fmt.Println("close unused connection to ", theirEndPoint.remoteAddress)
-		action()
-	}
-}
-
 // | Reset a remote endpoint if it is in Invalid mode
 //
 // If the remote endpoint is currently in broken state, and

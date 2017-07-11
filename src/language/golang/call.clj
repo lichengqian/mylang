@@ -10,6 +10,15 @@
     (str (emit v) 
         " != nil"))
 
+(defmethod go-call 'count
+    [_ v]
+    (str "len" 
+        (paren (emit v)))) 
+
+(defmethod go-call 'set
+    [_ v expr]
+    (str (emit v) " = " (emit expr) "\n"))
+
 ;; map op 
 (defmethod go-call 'get
     [_ m k]

@@ -290,4 +290,19 @@
             (st.sendOn (fn [^io.Writer conn]
                            (sendCloseConnection (uint32 connId) conn))))
         (ourEndPoint.closeIfUnused theirEndPoint)
-        (return nil)))
+        (return nil))
+
+    (defn closeIfUnused
+        "| Send a CloseSocket request if the remote endpoint is unused"
+        [^*RemoteEndPoint theirEndPoint]
+        (let theirState &theirEndPoint.remoteState)
+        (matchMVar! theirState
+            [RemoteEndPointValid *vst]
+            (when (and  (= vst._remoteOutgoing 0)
+                        (= (count vst._remoteIncoming) 0))
+                (set theirState.value
+                    (&RemoteEndPointClosing. (newNotifier) *vst))
+                (println "close unused connection to ", theirEndPoint.remoteAddress)
+                (vst.sendOn
+                    (fn [^io.Writer conn]
+                        (sendCloseSocket (uint32 vst._remoteLastIncoming) conn)))))))
