@@ -79,41 +79,6 @@ func (params *TCPParameters) apiConnect(ourEndPoint *LocalEndPoint, theirAddress
 	}, nil
 }
 
-// | Close a connection
-func (ourEndPoint *LocalEndPoint) apiClose(theirEndPoint *RemoteEndPoint, connId LightweightConnectionId, connAlive *AtomicBool) error {
-	fmt.Println("apiClose:", ourEndPoint.localAddress, "->", theirEndPoint.remoteAddress, connId)
-	vst := func() *ValidRemoteEndPointState {
-		theirState := theirEndPoint.remoteState
-
-		theirState.Lock()
-		defer theirState.Unlock()
-
-		switch st := theirState.value.(type) {
-		case *RemoteEndPointValid:
-			if connAlive.IsSet() {
-				connAlive.UnSet()
-
-				vst := &st._1
-				vst._remoteOutgoing--
-				fmt.Println("	remoteOutgoing--:", vst._remoteOutgoing)
-				//sched action
-				return vst
-			}
-			return nil
-		default:
-			return nil
-		}
-	}()
-
-	if vst != nil {
-		vst.sendOn(func(conn io.Writer) {
-			sendCloseConnection(uint32(connId), conn)
-		})
-	}
-	ourEndPoint.closeIfUnused(theirEndPoint)
-	return nil
-}
-
 // | Send data across a connection
 func (ourEndPoint *LocalEndPoint) apiSend(theirEndPoint *RemoteEndPoint, connId LightweightConnectionId, msg []byte, connAlive *AtomicBool) (int, error) {
 	fmt.Println("apiSend", connId)

@@ -17,8 +17,9 @@
 
 (defmethod emit-macro-call [::golang 'matchMVar!]
   [f v & body]
-  (let [mv (symbol (str (name v) ".value"))]
-    `(withMVar ~v
+  (let [f2 (with-meta 'withMVar (meta f))
+        mv (symbol (str (name v) ".value"))]
+    `(~f2 ~v
           (match ~mv ~@body))))
 
 (defmethod emit-macro-call [::golang 'lock!]

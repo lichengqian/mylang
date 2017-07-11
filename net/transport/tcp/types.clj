@@ -263,3 +263,31 @@
                                         sendQueue (native "make(chan Sender, 1000)")
                                         flushTimer (NewThrottleTimer "flush" flushThrottleMS*time.Millisecond)
                                         bufWriter (bufio.NewWriterSize conn minWriteBufferSize)}))))
+
+;;;------------------------------------------------------------------------------
+;;; API functions                                                              --
+;;;------------------------------------------------------------------------------
+
+(impl ^*LocalEndPoint ourEndPoint
+    (defn apiClose
+        "| Close a connection"
+        ^Error [^*RemoteEndPoint theirEndPoint ^LightweightConnectionId connId ^*AtomicBool connAlive]
+        (println "apiClose:", ourEndPoint.localAddress, "->", theirEndPoint.remoteAddress, connId)
+        (let st ((fn ^*ValidRemoteEndPointState []
+                        (let theirState &theirEndPoint.remoteState)
+                        (matchMVar! theirState
+                            [RemoteEndPointValid *vst]
+                            (if (connAlive.IsSet)
+                                (do
+                                    (connAlive.UnSet)
+                                    vst._remoteOutgoing--
+                                    (println "	remoteOutgoing--:" vst._remoteOutgoing)
+                                    (return vst))
+                                (return nil)))
+                        (return nil))))
+        
+        (when (not (nil? st))
+            (st.sendOn (fn [^io.Writer conn]
+                           (sendCloseConnection (uint32 connId) conn))))
+        (ourEndPoint.closeIfUnused theirEndPoint)
+        (return nil)))

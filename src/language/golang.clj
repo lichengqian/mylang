@@ -252,7 +252,7 @@
 (defmethod emit-special [::golang 'when] [type [if test & forms]]
   (str "if "
        (emit test) " "
-       (braceln (emit-do forms))
+       (brace (emit-do forms))
        "\n"))
        
 (defmethod emit-special [::golang 'set!] [type [set! var val]]

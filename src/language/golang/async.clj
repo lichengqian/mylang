@@ -50,7 +50,7 @@
     [f v & body]
     (println "withMVar " v)
     (let [sig (with-meta [] (meta f))]
-        `((fn ~sig (lock! ~v) ~@body))))
+        `(do (lock! ~v) ~@body)))
 
 (defmethod go-call 'case
     [f v c & body]
