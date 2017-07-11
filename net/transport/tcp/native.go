@@ -126,12 +126,12 @@ func ReadUint64(r io.Reader) (uint64, error) {
 	return binary.BigEndian.Uint64(buf[:]), nil
 }
 
-func ReadWithLen(r io.Reader, limit int) ([]byte, error) {
+func ReadWithLen(r io.Reader, limit uint32) ([]byte, error) {
 	len, err := ReadUint32(r)
 	if err != nil {
 		return nil, err
 	}
-	if len > uint32(limit) {
+	if len > limit {
 		return nil, errors.New("limit exceeded")
 	}
 

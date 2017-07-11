@@ -11,27 +11,16 @@
 
 (struct TCPTransport
     transportAddr TransportAddr
-    transportState (MVar TransportState))
+    transportState (MVar TransportState)
+    transportParams *TCPParameters)
 
 (enum TransportState
     (TransPortValid ValidTransportState)
     TransportClosed)
 
-(defmacro withValidTransportState! [transport vst & body]
-    (let [st (symbol (str "&" transport ".transportState"))
-          v (symbol "st.value")]
-        `(do
-            (let st ~st)
-            (lock! st)
-            (match ~v
-                [TransPortValid ~vst]
-                (do ~@body)))))
-
 (struct ValidTransportState
     _localEndPoints (Map EndPointId *LocalEndPoint)
     _nextEndPointId EndPointId)
-
-(def defaultEndPointQueueCapacity 4096)
 
 (struct LocalEndPoint
     localAddress EndPointAddress
@@ -39,34 +28,16 @@
     localQueue   (Chan Event)
     shakeHand  ShakeHand)
 
-(impl ^*TCPTransport transport
-    (defn removeLocalEndPoint 
-        " | Remove reference to a local endpoint from the transport state
-
- Does nothing if the transport is closed"
-        [^*LocalEndPoint ourEndPoint]
-        (withValidTransportState! transport *vst
-            (let epid ourEndPoint.localAddress.EndPointId)
-            (dissoc vst._localEndPoints epid))))
-
 (enum LocalEndPointState
     (LocalEndPointValid ValidLocalEndPointState)
     LocalEndPointClosed)
     
-(defmacro withValidLocalEndPointState! [ourEndPoint vst & body]
-    (let [st (symbol (str "&" ourEndPoint ".localState"))
-          v (symbol "st.value")]
-        `(do
-            (let st ~st)
-            (lock! st)
-            (match ~v
-                [LocalEndPointValid ~vst]
-                (do ~@body)))))
-
 (struct ValidLocalEndPointState
     _localNextConnOutId   LightweightConnectionId
     _nextConnInId       HeavyweightConnectionId
     _localConnections   (Map EndPointAddress *RemoteEndPoint))
+
+;;; REMOTE ENDPOINTS
 
 (struct RemoteEndPoint
     remoteAddress EndPointAddress
@@ -74,31 +45,24 @@
     remoteId    HeavyweightConnectionId
     remoteScheduled     (Chan Action))
 
-(impl ^*LocalEndPoint ourEndPoint
-    (defn removeRemoteEndPoint 
-        " | Remove reference to a remote endpoint from a local endpoint
-
- If the local endpoint is closed, do nothing"
-        [^*RemoteEndPoint theirEndPoint]
-        (withValidLocalEndPointState! ourEndPoint *vst
-            (dissoc vst._localConnections theirEndPoint.remoteAddress))))
-
 (enum RequestedBy
     RequestedByUs
     RequestedByThem)
 
 (enum RemoteState
+    ;; | Invalid remote endpoint (for example, invalid address)
     (RemoteEndPointInvalid ConnectErrorCode String)
+    ;; | The remote endpoint is being initialized
     (RemoteEndPointInit Notifier Notifier RequestedBy)
+    ;; | "Normal" working endpoint
     (RemoteEndPointValid ValidRemoteEndPointState)
+    ;; | The remote endpoint is being closed (garbage collected)
     (RemoteEndPointClosing Notifier ValidRemoteEndPointState)
+    ;; | The remote endpoint has been closed (garbage collected)
     RemoteEndPointClosed
+    ;; | The remote endpoint has failed, or has been forcefully shutdown
+    ;; using a closeTransport or closeEndPoint API call
     (RemoteEndPointFailed Error))
-
-(def minWriteBufferSize 65536)
-(def flushThrottleMS 100)
-
-(type Sender "func (io.Writer)")
 
 (struct ValidRemoteEndPointState
     _remoteOutgoing LightweightConnectionId
@@ -111,6 +75,67 @@
     sendQueue    (Chan Sender)  ; send queue
     flushTimer   *ThrottleTimer ; flush writes as necessary but throttled.
     bufWriter   *bufio.Writer)
+
+;;; Parameters for setting up the TCP transport
+(struct TCPParameters
+    ;; | Maximum length (in bytes) for a peer's address.
+    ;; If a peer attempts to send an address of length exceeding the limit,
+    ;; the connection will be refused (socket will close).
+    tcpMaxAddressLength UInt32
+    ;; | Maximum length (in bytes) to receive from a peer.
+    ;; If a peer attempts to send data on a lightweight connection exceeding
+    ;; the limit, the heavyweight connection which carries that lightweight
+    ;; connection will go down. The peer and the local node will get an
+    ;; EventConnectionLost.
+    tcpMaxReceiveLength UInt32)
+
+;;; macros
+
+(defmacro withValidTransportState! [transport vst & body]
+    (let [st (symbol (str "&" transport ".transportState"))
+          v (symbol "st.value")]
+        `(do
+            (let st ~st)
+            (lock! st)
+            (match ~v
+                [TransPortValid ~vst]
+                (do ~@body)))))
+
+(def defaultEndPointQueueCapacity 4096)
+
+(impl ^*TCPTransport transport
+    (defn removeLocalEndPoint 
+        " | Remove reference to a local endpoint from the transport state
+
+ Does nothing if the transport is closed"
+        [^*LocalEndPoint ourEndPoint]
+        (withValidTransportState! transport *vst
+            (let epid ourEndPoint.localAddress.EndPointId)
+            (dissoc vst._localEndPoints epid))))
+
+(defmacro withValidLocalEndPointState! [ourEndPoint vst & body]
+    (let [st (symbol (str "&" ourEndPoint ".localState"))
+          v (symbol "st.value")]
+        `(do
+            (let st ~st)
+            (lock! st)
+            (match ~v
+                [LocalEndPointValid ~vst]
+                (do ~@body)))))
+
+(impl ^*LocalEndPoint ourEndPoint
+    (defn removeRemoteEndPoint 
+        " | Remove reference to a remote endpoint from a local endpoint
+
+ If the local endpoint is closed, do nothing"
+        [^*RemoteEndPoint theirEndPoint]
+        (withValidLocalEndPointState! ourEndPoint *vst
+            (dissoc vst._localConnections theirEndPoint.remoteAddress))))
+
+(def minWriteBufferSize 65536)
+(def flushThrottleMS 100)
+
+(type Sender "func (io.Writer)")
 
 ;;; transport definition
 
@@ -208,11 +233,13 @@
     (&TransPortValid.
         (map->ValidTransportState {_nextEndPointId 0}))))
 
-(defn newTCPTransport ^*TCPTransport [^string lAddr]
+(defn newTCPTransport ^*TCPTransport 
+    [^string lAddr ^*TCPParameters params]
     (let state (newTransportState))
     (return
         (map->&TCPTransport {transportAddr (TransportAddr lAddr)
-                             transportState (^TransportState newMVar state)})))
+                             transportState (^TransportState newMVar state)
+                             transportParams params})))
 
 (defn newLocalEndPointState ^LocalEndPointState []
   (return

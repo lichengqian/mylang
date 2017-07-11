@@ -9,7 +9,7 @@ import (
 )
 
 func createTCPTransport(lAddr string) (*TCPTransport, error) {
-	tp := newTCPTransport(lAddr)
+	tp := newTCPTransport(lAddr, defaultTCPParameters)
 
 	err := tp.forkServer(func(conn net.Conn) {
 		tp.handleConnectionRequest(conn)
@@ -30,17 +30,17 @@ func (transport *TCPTransport) apiCloseTransport(evs []Event) error {
 }
 
 // | Create a new endpoint
-func (transport *TCPTransport) apiNewEndPoint(epid EndPointId, shake ShakeHand) (*EndPoint, error) {
-	ourEndPoint, err := transport.createLocalEndPoint(epid, shake)
+func (tp *TCPTransport) apiNewEndPoint(epid EndPointId, shake ShakeHand) (*EndPoint, error) {
+	ourEndPoint, err := tp.createLocalEndPoint(epid, shake)
 	if err != nil {
 		return nil, err
 	}
 	return &EndPoint{
 		Close: func() error {
-			return transport.apiCloseEndPoint([]Event{EndPointClosed{}}, ourEndPoint)
+			return tp.apiCloseEndPoint([]Event{EndPointClosed{}}, ourEndPoint)
 		},
 		Dial: func(theirAddress EndPointAddress) (*Connection, error) {
-			return ourEndPoint.apiConnect(theirAddress)
+			return tp.apiConnect(ourEndPoint, theirAddress)
 		},
 		Receive: func() Event {
 			return <-ourEndPoint.localQueue
@@ -52,14 +52,14 @@ func (transport *TCPTransport) apiNewEndPoint(epid EndPointId, shake ShakeHand) 
 }
 
 // | Connnect to an endpoint
-func (ourEndPoint *LocalEndPoint) apiConnect(theirAddress EndPointAddress) (*Connection, error) {
+func (tp *TCPTransport) apiConnect(ourEndPoint *LocalEndPoint, theirAddress EndPointAddress) (*Connection, error) {
 	//TODO: connect to self 756
 
 	err := ourEndPoint.resetIfBroken(theirAddress)
 	if err != nil {
 		return nil, err
 	}
-	theirEndPoint, connId, err := ourEndPoint.createConnectionTo(theirAddress)
+	theirEndPoint, connId, err := tp.createConnectionTo(ourEndPoint, theirAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -244,7 +244,7 @@ func (tp *TCPTransport) handleConnectionRequest(conn net.Conn) {
 		return
 	}
 	// get remote endpoint
-	bs, err := ReadWithLen(conn, tcpMaxAddressLength)
+	bs, err := ReadWithLen(conn, tp.transportParams.tcpMaxAddressLength)
 	if err != nil {
 		conn.Close()
 		return
@@ -290,11 +290,11 @@ func (tp *TCPTransport) handleConnectionRequest(conn net.Conn) {
 		return
 	}
 
-	ep.handleConnectionRequest(theirAddress, conn)
+	tp.handleConnectionRequestForEndPoint(ep, theirAddress, conn)
 }
 
 // endpoint handle incoming connection
-func (ourEndPoint *LocalEndPoint) handleConnectionRequest(theirAddress *EndPointAddress, conn net.Conn) {
+func (tp *TCPTransport) handleConnectionRequestForEndPoint(ourEndPoint *LocalEndPoint, theirAddress *EndPointAddress, conn net.Conn) {
 	// This runs in a thread that will never be killed
 	err := ourEndPoint.resetIfBroken(*theirAddress)
 	if err != nil {
@@ -330,14 +330,14 @@ func (ourEndPoint *LocalEndPoint) handleConnectionRequest(theirAddress *EndPoint
 	ourEndPoint.resolveInit(theirEndPoint, vst)
 
 	go (&vst._1).sendRoutine()
-	handleIncomingMessages(ourEndPoint, theirEndPoint)
+	tp.handleIncomingMessages(ourEndPoint, theirEndPoint)
 }
 
 // | Handle requests from a remote endpoint.
 //
 // Returns only if the remote party closes the socket or if an error occurs.
 // This runs in a thread that will never be killed.
-func handleIncomingMessages(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEndPoint) {
+func (tp *TCPTransport) handleIncomingMessages(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEndPoint) {
 	theirAddress := theirEndPoint.remoteAddress
 
 	// Deal with a premature exit
@@ -414,7 +414,7 @@ func handleIncomingMessages(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEnd
 	// should verify that the connection ID is valid, but this is unnecessary
 	// overhead
 	readMessage := func(sock net.Conn, lcid LightweightConnectionId) error {
-		msg, err := ReadWithLen(sock, tcpMaxReceiveLength)
+		msg, err := ReadWithLen(sock, tp.transportParams.tcpMaxReceiveLength)
 		if err != nil {
 			return err
 		}
@@ -675,11 +675,11 @@ func handleIncomingMessages(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEnd
 // block until that is resolved.
 //
 // May throw a TransportError ConnectErrorCode exception.
-func (ourEndPoint *LocalEndPoint) createConnectionTo(theirAddress EndPointAddress) (*RemoteEndPoint, LightweightConnectionId, error) {
-	return ourEndPoint.createConnectionTo_go(theirAddress, nil)
+func (tp *TCPTransport) createConnectionTo(ourEndPoint *LocalEndPoint, theirAddress EndPointAddress) (*RemoteEndPoint, LightweightConnectionId, error) {
+	return tp.createConnectionTo_go(ourEndPoint, theirAddress, nil)
 }
 
-func (ourEndPoint *LocalEndPoint) createConnectionTo_go(theirAddress EndPointAddress, rsp ConnectionRequestResponse) (*RemoteEndPoint, LightweightConnectionId, error) {
+func (tp *TCPTransport) createConnectionTo_go(ourEndPoint *LocalEndPoint, theirAddress EndPointAddress, rsp ConnectionRequestResponse) (*RemoteEndPoint, LightweightConnectionId, error) {
 	theirEndPoint, isNew, err := ourEndPoint.findRemoteEndPoint(theirAddress, RequestedByUs{})
 	switch rsp.(type) {
 	case ConnectionRequestCrossed:
@@ -703,12 +703,12 @@ func (ourEndPoint *LocalEndPoint) createConnectionTo_go(theirAddress EndPointAdd
 	}
 
 	if isNew {
-		rsp2, err := ourEndPoint.setupRemoteEndPoint(theirEndPoint)
+		rsp2, err := tp.setupRemoteEndPoint(ourEndPoint, theirEndPoint)
 		fmt.Println("createConnectionTo ", theirAddress, rsp2, err)
 		if err != nil {
 			// return theirEndPoint, firstNonReservedLightweightConnectionId, err
 		}
-		return ourEndPoint.createConnectionTo_go(theirAddress, rsp2)
+		return tp.createConnectionTo_go(ourEndPoint, theirAddress, rsp2)
 	}
 	// 'findRemoteEndPoint' will have increased 'remoteOutgoing'
 	var action func()
@@ -743,7 +743,7 @@ func (ourEndPoint *LocalEndPoint) createConnectionTo_go(theirAddress EndPointAdd
 }
 
 // | Set up a remote endpoint
-func (ourEndPoint *LocalEndPoint) setupRemoteEndPoint(theirEndPoint *RemoteEndPoint) (ConnectionRequestResponse, error) {
+func (tp *TCPTransport) setupRemoteEndPoint(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEndPoint) (ConnectionRequestResponse, error) {
 	ourAddress := ourEndPoint.localAddress
 	theirAddress := theirEndPoint.remoteAddress
 
@@ -751,13 +751,6 @@ func (ourEndPoint *LocalEndPoint) setupRemoteEndPoint(theirEndPoint *RemoteEndPo
 	if err != nil {
 		ourEndPoint.resolveInit(theirEndPoint, &RemoteEndPointInvalid{nil, err.Error()})
 		return nil, err
-	}
-
-	afterAccept := func() {
-		go func() {
-			defer sock.Close()
-			handleIncomingMessages(ourEndPoint, theirEndPoint)
-		}()
 	}
 
 	theirState := &theirEndPoint.remoteState
@@ -768,7 +761,10 @@ func (ourEndPoint *LocalEndPoint) setupRemoteEndPoint(theirEndPoint *RemoteEndPo
 		ourEndPoint.resolveInit(theirEndPoint, st)
 
 		go (&st._1).sendRoutine()
-		afterAccept()
+		go func() {
+			defer sock.Close()
+			tp.handleIncomingMessages(ourEndPoint, theirEndPoint)
+		}()
 	case ConnectionRequestInvalid:
 		defer sock.Close()
 
@@ -1110,17 +1106,8 @@ func (transport *TCPTransport) internalSocketBetween(ourAddress EndPointAddress,
 // Constants                                                                  --
 //------------------------------------------------------------------------------
 
-// | Parameters for setting up the TCP transport
-var (
-	// | Maximum length (in bytes) for a peer's address.
-	// If a peer attempts to send an address of length exceeding the limit,
-	// the connection will be refused (socket will close).
-	tcpMaxAddressLength = 1000
-
-	// | Maximum length (in bytes) to receive from a peer.
-	// If a peer attempts to send data on a lightweight connection exceeding
-	// the limit, the heavyweight connection which carries that lightweight
-	// connection will go down. The peer and the local node will get an
-	// EventConnectionLost.
-	tcpMaxReceiveLength = 4 * 1024 * 1024
-)
+// | Default TCP parameters
+var defaultTCPParameters = &TCPParameters{
+	tcpMaxAddressLength: 1000,
+	tcpMaxReceiveLength: 4 * 1024 * 1024,
+}
