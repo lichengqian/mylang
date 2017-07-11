@@ -112,7 +112,7 @@
             (do
                 (dissoc vst.localSwitches localChannel.channelID)
                 (dissoc vst.localConnections localChannel.channelID)
-                (return))))
+                (return nil))))
     ; LocalNodeClosed
     (throw "local node closed"))
     
@@ -233,7 +233,7 @@
     [^*LocalChannel localChannel, ^EndPointAddress to]
     (let node localChannel.localNode)
     (<- _ (connBetween node localChannel.channelID to))
-    (return))
+    (return nil))
 
 (defn SendPayload
     [^*LocalChannel LocalChannel ^EndPointAddress to ^ByteString payload]
@@ -242,7 +242,7 @@
     (<- bytes (conn.Send payload))
     (println bytes)
     ; (>! node.localCtrlChan (NCMsg. to (&Died. to (DiedDisconnect.))))
-    (return))
+    (return nil))
 
 (defn setupConnBetween ^*Connection
     [^*LocalNode node ^ChannelID from ^EndPointAddress to]

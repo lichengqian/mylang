@@ -1,15 +1,17 @@
 (in-ns 'language.golang)
 
 ;;; return function
-(defn- emit-return-default [v]
-  (str "return " (emit v)))
+(defn- emit-return-default [& v]
+  (->> v
+    (m/fmap emit)
+    (cl-format nil "return ~{~A~^, ~}")))
 
 (def ^:dynamic *return* emit-return-default)
 (def ^:dynamic *self* "")
 
 (defmethod emit-special [::golang 'return]
-  [_ [_ v]]
-  (*return* v))
+  [_ [_ & v]]
+  (apply *return* v))
 
 (def ^:dynamic *throw* (fn [v] (str "return " (emit v))))
 
@@ -46,8 +48,8 @@
                 "return err\n"
                 "return nil, err\n"))
 
-            (emit-return [v]
-              (str "return " (emit v)
+            (emit-return [& v]
+              (str (apply emit-return-default v)
                 (if (nil? (typeof sig))
                   "\n"
                   ", nil")))

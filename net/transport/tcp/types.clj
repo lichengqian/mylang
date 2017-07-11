@@ -292,6 +292,42 @@
         (ourEndPoint.closeIfUnused theirEndPoint)
         (return nil))
 
+    (defn apiSend
+        "| Send data across a connection"
+        ^"int, error"
+        [^*RemoteEndPoint theirEndPoint 
+         ^LightweightConnectionId connId
+         ^ByteString msg
+         ^*AtomicBool connAlive]
+        (println "apiSend" connId (count msg))
+        (let theirState &theirEndPoint.remoteState)
+        (matchMVar! theirState
+            [RemoteEndPointInvalid]
+            (return 0 (errors.New "apiSend RemoteEndPointInvalid"))
+            [RemoteEndPointInit]
+            (return 0 (errors.New "apiSend RemoteEndPointInit"))
+            [RemoteEndPointClosing]
+            (if (connAlive.IsSet)
+                (return 0 (errors.New "apiSend RemoteEndPointClosing"))
+                (return 0 ErrConnectionClosed))
+            RemoteEndPointClosed
+            (if (connAlive.IsSet)
+                (return 0 (errors.New "apiSend RemoteEndPointClosed"))
+                (return 0 ErrConnectionClosed))
+            [RemoteEndPointFailed err]
+            (if (connAlive.IsSet)
+                (return 0 err)
+                (return 0 ErrConnectionClosed))
+            [RemoteEndPointValid *vst]
+            (if (connAlive.IsSet)
+                (do
+                    (vst.sendOn
+                        (fn [^io.Writer conn]
+                            (connId.sendMsg msg conn)))
+                    (return (count msg) nil))
+                (return 0 ErrConnectionClosed)))
+        (return 0 (errors.New "apiSend error")))
+
     (defn closeIfUnused
         "| Send a CloseSocket request if the remote endpoint is unused"
         [^*RemoteEndPoint theirEndPoint]

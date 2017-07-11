@@ -79,48 +79,6 @@ func (params *TCPParameters) apiConnect(ourEndPoint *LocalEndPoint, theirAddress
 	}, nil
 }
 
-// | Send data across a connection
-func (ourEndPoint *LocalEndPoint) apiSend(theirEndPoint *RemoteEndPoint, connId LightweightConnectionId, msg []byte, connAlive *AtomicBool) (int, error) {
-	fmt.Println("apiSend", connId)
-	action, err := func() (func(), error) {
-		theirState := &theirEndPoint.remoteState
-		theirState.Lock()
-		theirState.Unlock()
-
-		switch st := theirState.value.(type) {
-		case *RemoteEndPointInvalid, *RemoteEndPointInit:
-			ourEndPoint.relyViolation("apiSend")
-		case *RemoteEndPointValid:
-			if connAlive.IsSet() {
-				vst := &st._1
-				return func() {
-					vst.sendOn(func(conn io.Writer) {
-						connId.sendMsg(msg, conn)
-					})
-				}, nil
-			}
-			return nil, ErrConnectionClosed
-		case *RemoteEndPointClosing, RemoteEndPointClosed:
-			if connAlive.IsSet() {
-				ourEndPoint.relyViolation("apiSend")
-			}
-			return nil, ErrConnectionClosed
-		case *RemoteEndPointFailed:
-			if connAlive.IsSet() {
-				return nil, st._1
-			}
-			return nil, ErrConnectionClosed
-		}
-		return nil, errors.New("apiSend error")
-	}()
-
-	if err != nil {
-		return 0, err
-	}
-	action()
-	return len(msg), nil
-}
-
 // | Force-close the endpoint
 func (transport *TCPTransport) apiCloseEndPoint(evs []Event, ourEndPoint *LocalEndPoint) error {
 	// Remove the reference from the transport state
