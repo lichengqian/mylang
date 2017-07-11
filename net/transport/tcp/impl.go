@@ -25,7 +25,7 @@ func createTCPTransport(lAddr string) (*TCPTransport, error) {
 //------------------------------------------------------------------------------
 
 // | Close the transport
-func (transport *TCPTransport) apiCloseTransport(evs []Event) error {
+func (tp *TCPTransport) apiCloseTransport(evs []Event) error {
 	return errors.New("not implemented")
 }
 
@@ -40,7 +40,7 @@ func (tp *TCPTransport) apiNewEndPoint(epid EndPointId, shake ShakeHand) (*EndPo
 			return tp.apiCloseEndPoint([]Event{EndPointClosed{}}, ourEndPoint)
 		},
 		Dial: func(theirAddress EndPointAddress) (*Connection, error) {
-			return tp.apiConnect(ourEndPoint, theirAddress)
+			return tp.transportParams.apiConnect(ourEndPoint, theirAddress)
 		},
 		Receive: func() Event {
 			return <-ourEndPoint.localQueue
@@ -52,14 +52,14 @@ func (tp *TCPTransport) apiNewEndPoint(epid EndPointId, shake ShakeHand) (*EndPo
 }
 
 // | Connnect to an endpoint
-func (tp *TCPTransport) apiConnect(ourEndPoint *LocalEndPoint, theirAddress EndPointAddress) (*Connection, error) {
+func (params *TCPParameters) apiConnect(ourEndPoint *LocalEndPoint, theirAddress EndPointAddress) (*Connection, error) {
 	//TODO: connect to self 756
 
 	err := ourEndPoint.resetIfBroken(theirAddress)
 	if err != nil {
 		return nil, err
 	}
-	theirEndPoint, connId, err := tp.createConnectionTo(ourEndPoint, theirAddress)
+	theirEndPoint, connId, err := params.createConnectionTo(ourEndPoint, theirAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -330,14 +330,14 @@ func (tp *TCPTransport) handleConnectionRequestForEndPoint(ourEndPoint *LocalEnd
 	ourEndPoint.resolveInit(theirEndPoint, vst)
 
 	go (&vst._1).sendRoutine()
-	tp.handleIncomingMessages(ourEndPoint, theirEndPoint)
+	tp.transportParams.handleIncomingMessages(ourEndPoint, theirEndPoint)
 }
 
 // | Handle requests from a remote endpoint.
 //
 // Returns only if the remote party closes the socket or if an error occurs.
 // This runs in a thread that will never be killed.
-func (tp *TCPTransport) handleIncomingMessages(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEndPoint) {
+func (params *TCPParameters) handleIncomingMessages(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEndPoint) {
 	theirAddress := theirEndPoint.remoteAddress
 
 	// Deal with a premature exit
@@ -414,7 +414,7 @@ func (tp *TCPTransport) handleIncomingMessages(ourEndPoint *LocalEndPoint, their
 	// should verify that the connection ID is valid, but this is unnecessary
 	// overhead
 	readMessage := func(sock net.Conn, lcid LightweightConnectionId) error {
-		msg, err := ReadWithLen(sock, tp.transportParams.tcpMaxReceiveLength)
+		msg, err := ReadWithLen(sock, params.tcpMaxReceiveLength)
 		if err != nil {
 			return err
 		}
@@ -675,11 +675,11 @@ func (tp *TCPTransport) handleIncomingMessages(ourEndPoint *LocalEndPoint, their
 // block until that is resolved.
 //
 // May throw a TransportError ConnectErrorCode exception.
-func (tp *TCPTransport) createConnectionTo(ourEndPoint *LocalEndPoint, theirAddress EndPointAddress) (*RemoteEndPoint, LightweightConnectionId, error) {
-	return tp.createConnectionTo_go(ourEndPoint, theirAddress, nil)
+func (params *TCPParameters) createConnectionTo(ourEndPoint *LocalEndPoint, theirAddress EndPointAddress) (*RemoteEndPoint, LightweightConnectionId, error) {
+	return params.createConnectionTo_go(ourEndPoint, theirAddress, nil)
 }
 
-func (tp *TCPTransport) createConnectionTo_go(ourEndPoint *LocalEndPoint, theirAddress EndPointAddress, rsp ConnectionRequestResponse) (*RemoteEndPoint, LightweightConnectionId, error) {
+func (params *TCPParameters) createConnectionTo_go(ourEndPoint *LocalEndPoint, theirAddress EndPointAddress, rsp ConnectionRequestResponse) (*RemoteEndPoint, LightweightConnectionId, error) {
 	theirEndPoint, isNew, err := ourEndPoint.findRemoteEndPoint(theirAddress, RequestedByUs{})
 	switch rsp.(type) {
 	case ConnectionRequestCrossed:
@@ -703,12 +703,12 @@ func (tp *TCPTransport) createConnectionTo_go(ourEndPoint *LocalEndPoint, theirA
 	}
 
 	if isNew {
-		rsp2, err := tp.setupRemoteEndPoint(ourEndPoint, theirEndPoint)
+		rsp2, err := params.setupRemoteEndPoint(ourEndPoint, theirEndPoint)
 		fmt.Println("createConnectionTo ", theirAddress, rsp2, err)
 		if err != nil {
 			// return theirEndPoint, firstNonReservedLightweightConnectionId, err
 		}
-		return tp.createConnectionTo_go(ourEndPoint, theirAddress, rsp2)
+		return params.createConnectionTo_go(ourEndPoint, theirAddress, rsp2)
 	}
 	// 'findRemoteEndPoint' will have increased 'remoteOutgoing'
 	var action func()
@@ -743,7 +743,7 @@ func (tp *TCPTransport) createConnectionTo_go(ourEndPoint *LocalEndPoint, theirA
 }
 
 // | Set up a remote endpoint
-func (tp *TCPTransport) setupRemoteEndPoint(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEndPoint) (ConnectionRequestResponse, error) {
+func (params *TCPParameters) setupRemoteEndPoint(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEndPoint) (ConnectionRequestResponse, error) {
 	ourAddress := ourEndPoint.localAddress
 	theirAddress := theirEndPoint.remoteAddress
 
@@ -763,7 +763,7 @@ func (tp *TCPTransport) setupRemoteEndPoint(ourEndPoint *LocalEndPoint, theirEnd
 		go (&st._1).sendRoutine()
 		go func() {
 			defer sock.Close()
-			tp.handleIncomingMessages(ourEndPoint, theirEndPoint)
+			params.handleIncomingMessages(ourEndPoint, theirEndPoint)
 		}()
 	case ConnectionRequestInvalid:
 		defer sock.Close()
