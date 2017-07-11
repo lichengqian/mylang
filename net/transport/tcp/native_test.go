@@ -130,3 +130,70 @@ func TestRecover(t *testing.T) {
 
 	panic(errors.New("hello, error"))
 }
+
+// Find a socket between two endpoints
+//
+// Throws an IO exception if the socket could not be found.
+func (transport *TCPTransport) internalSocketBetween(ourAddress EndPointAddress, theirAddress EndPointAddress) (net.Conn, error) {
+	ourEndPoint, err := func() (*LocalEndPoint, error) {
+		s := &transport.transportState
+		s.Lock()
+		defer s.Unlock()
+
+		switch st := s.value.(type) {
+		case *TransPortValid:
+			vst := &st._1
+			if ep, ok := vst._localEndPoints[ourAddress.EndPointId]; ok {
+				return ep, nil
+			} else {
+				return nil, errors.New("Local endpoint not found")
+			}
+		}
+		return nil, ErrTransportClosed
+	}()
+
+	if err != nil {
+		return nil, err
+	}
+
+	theirEndPoint, err := func() (*RemoteEndPoint, error) {
+		s := &ourEndPoint.localState
+		s.Lock()
+		defer s.Unlock()
+
+		switch st := s.value.(type) {
+		case *LocalEndPointValid:
+			vst := &st._1
+			if ep, ok := vst._localConnections[theirAddress]; ok {
+				return ep, nil
+			} else {
+				return nil, errors.New("RemoteEndPoint not found")
+			}
+		}
+		return nil, ErrEndPointClosed
+	}()
+
+	if err != nil {
+		return nil, err
+	}
+
+	s := &theirEndPoint.remoteState
+	s.Lock()
+	defer s.Unlock()
+
+	switch st := s.value.(type) {
+	case *RemoteEndPointInit:
+		return nil, errors.New("Remote endpoint not yet initialized")
+	case *RemoteEndPointValid:
+		return st._1.remoteConn, nil
+	case *RemoteEndPointClosing:
+		return st._2.remoteConn, nil
+	case RemoteEndPointClosed:
+		return nil, errors.New("Remote endpoint closed")
+	case *RemoteEndPointInvalid:
+		return nil, errors.New(st._2)
+	case *RemoteEndPointFailed:
+		return nil, st._1
+	}
+	return nil, errors.New("can not happen")
+}
