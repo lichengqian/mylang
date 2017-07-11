@@ -375,5 +375,25 @@
                 (do
                     (println "resetIfBroken" e)
                     (ourEndPoint.removeRemoteEndPoint theirEndPoint))))
-        (return nil)))
+        (return nil))
             
+    ;; Resolve an endpoint currently in 'Init' state
+    (defn resolveInit ^Error
+        [^*RemoteEndPoint theirEndPoint, ^RemoteState newState]
+        (let theirState &theirEndPoint.remoteState
+            setState (fn []
+                        (match newState
+                            RemoteEndPointClosed
+                            (ourEndPoint.removeRemoteEndPoint theirEndPoint)
+
+                            (set theirState.value newState))))
+
+        (matchMVar! theirState
+            [RemoteEndPointInit resolved]
+            (do
+                (notify resolved)
+                (setState)
+                (return nil))
+            [RemoteEndPointFailed e]
+            (return e))
+        (return (errors.New "resolveInit"))))

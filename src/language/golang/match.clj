@@ -25,13 +25,23 @@
    (str "default:\n"
      (emit expr))))
 
+(defn- match-no-var?
+    [exprs]
+    (->> exprs
+        (partition 2)
+        (m/fmap first)
+        (filter vector?)
+        empty?))
+
 (defmethod emit-special [::golang 'match]
   [type [_ test & exprs]]
   (let [code-test (str (emit test) ".(type)")
-        branches (partition 2 exprs)]
+        branches (partition-all 2 exprs)]
       (->> branches
           (map #(apply emit-branch %))
           (string/join "\n")
           braceln
-          (str "switch _s := " code-test))))
+          (str "switch "
+              (if (match-no-var? exprs) "" "_s := ") 
+              code-test))))
 

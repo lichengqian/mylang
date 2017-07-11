@@ -819,31 +819,6 @@ func (ourEndPoint *LocalEndPoint) findRemoteEndPoint(theirAddress EndPointAddres
 	return nil, false, nil
 }
 
-// Resolve an endpoint currently in 'Init' state
-func (ourEndPoint *LocalEndPoint) resolveInit(theirEndPoint *RemoteEndPoint, newState RemoteState) error {
-	theirEndPoint.remoteState.Lock()
-	defer theirEndPoint.remoteState.Unlock()
-
-	switch p := theirEndPoint.remoteState.value.(type) {
-	case *RemoteEndPointInit:
-		resolved := p._1
-		notify(resolved)
-		switch newState.(type) {
-		case RemoteEndPointClosed:
-			ourEndPoint.removeRemoteEndPoint(theirEndPoint)
-		default:
-			theirEndPoint.remoteState.value = newState
-		}
-		return nil
-	case *RemoteEndPointFailed:
-		return p._1
-	default:
-		ourEndPoint.relyViolation("resolveInit")
-	}
-	theirEndPoint.remoteState.value = newState
-	return nil
-}
-
 // | Create a new local endpoint
 //
 // May throw a TransportError NewEndPointErrorCode exception if the transport
