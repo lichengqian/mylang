@@ -77,13 +77,37 @@
 (defn channel-op->case
   [m]
   (let [[t v] (get-in m [:expr :result 0])
-        val (if (= t :wildchar) 'nil v)]
-      `(case ~val (<! ~(:chan m))
+        val (if (= t :wildchar) 
+                `(<! ~(:chan m))
+                `(let ~v (<! ~(:chan m))))]
+      `(go:case ~val
           ~@(get-in m [:expr :exprs]))))
 
 (defn alt!->select
   [m]
   `(select ~@(map channel-op->case (:result-expr m))))
+
+;;; (case ) -> (go:switch )
+(s/def ::case
+  (s/cat  :case #{'case}
+          :e any?
+          :branches (s/+ (s/cat :condition any?
+                                :action any?))
+          :default (s/? any?)))
+
+(defn case->go:switch
+  [spec]
+  (let [branch->go:case
+        (fn [m]
+          `(go:case ~(:condition m) ~(:action m)))
+        ->go:default
+        (fn [e]
+          (if (nil? e)
+            '()
+            `((go:default ~e))))]
+    `(go:switch ~(:e spec)
+        ~@(m/fmap branch->go:case (:branches spec))
+        ~@(->go:default (:default spec)))))
 
 (defn reduce-go-form [form]
   (prewalk*
@@ -102,7 +126,10 @@
       (fn [m] `(go ~@(rest (:do m))))
       ;; (alt! ) => (select )
       ::alt!
-      alt!->select)
+      alt!->select
+
+      ::case
+      case->go:switch)
     form))
 
 (defmethod transform ::golang

@@ -1,5 +1,28 @@
 (in-ns 'language.golang)
 
+;; golang native keyword
+(defmethod go-call 'go:case
+    [f c & body]
+    (str "case "
+        (emit c)
+        ": \n"
+        (emit-do body)))
+
+(defmethod go-call 'go:default
+    [f & body]
+    (str "default:\n"
+        (emit-do body)))
+
+(defmethod go-call 'go:select
+    [f & body]
+    (str "select"
+        (braceln (emit-do body))))
+
+(defmethod go-call 'go:switch
+    [f e & body]
+    (str "switch " (emit e)
+        (braceln (emit-do body))))
+
 (defmethod go-call 'type
     [_ v]
     (str (emit v) 
