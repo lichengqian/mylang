@@ -252,7 +252,7 @@ func (tp *TCPTransport) handleConnectionRequestForEndPoint(ourEndPoint *LocalEnd
 	writeConnectionRequestResponse(ConnectionRequestAccepted{}, conn)
 	ourEndPoint.resolveInit(theirEndPoint, vst)
 
-	go (&vst._1).sendRoutine()
+	go vst.sendRoutine()
 	tp.transportParams.handleIncomingMessages(ourEndPoint, theirEndPoint)
 }
 
@@ -626,7 +626,7 @@ func (params *TCPParameters) createConnectionTo_go(ourEndPoint *LocalEndPoint, t
 	}
 
 	if isNew {
-		rsp2, err := params.setupRemoteEndPoint(ourEndPoint, theirEndPoint)
+		rsp2, err := ourEndPoint.setupRemoteEndPoint(params, theirEndPoint)
 		fmt.Println("createConnectionTo ", theirAddress, rsp2, err)
 		if err != nil {
 			// return theirEndPoint, firstNonReservedLightweightConnectionId, err
@@ -663,59 +663,6 @@ func (params *TCPParameters) createConnectionTo_go(ourEndPoint *LocalEndPoint, t
 		action()
 	}
 	return theirEndPoint, connId, err
-}
-
-// | Set up a remote endpoint
-func (params *TCPParameters) setupRemoteEndPoint(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEndPoint) (ConnectionRequestResponse, error) {
-	ourAddress := ourEndPoint.localAddress
-	theirAddress := theirEndPoint.remoteAddress
-
-	sock, rsp, err := socketToEndPoint(ourAddress, theirAddress, ourEndPoint.shakeHand)
-	if err != nil {
-		ourEndPoint.resolveInit(theirEndPoint, &RemoteEndPointInvalid{nil, err.Error()})
-		return nil, err
-	}
-
-	theirState := &theirEndPoint.remoteState
-
-	switch rsp.(type) {
-	case ConnectionRequestAccepted:
-		st := newRemoteEndPointValid(sock)
-		ourEndPoint.resolveInit(theirEndPoint, st)
-
-		go (&st._1).sendRoutine()
-		go func() {
-			defer sock.Close()
-			params.handleIncomingMessages(ourEndPoint, theirEndPoint)
-		}()
-	case ConnectionRequestInvalid:
-		defer sock.Close()
-
-		st := &RemoteEndPointInvalid{ConnectNotFound{}, "setupRemoteEndPoint: Invalid endpoint"}
-		ourEndPoint.resolveInit(theirEndPoint, st)
-	case ConnectionRequestCrossed:
-		defer sock.Close()
-		theirState.Lock()
-		defer theirState.Unlock()
-
-		switch st := theirState.value.(type) {
-		case *RemoteEndPointInit:
-			crossed := st._2
-			notify(crossed)
-		case *RemoteEndPointFailed:
-			return rsp, st._1
-		default:
-			ourEndPoint.relyViolation("setupRemoteEndPoint: Crossed")
-		}
-	case ConnectionRequestHostMismatch:
-		defer sock.Close()
-
-		msg := "setupRemoteEndPoint: Host mismatch "
-		st := &RemoteEndPointInvalid{ConnectFailed{}, msg}
-		ourEndPoint.resolveInit(theirEndPoint, st)
-	}
-
-	return rsp, nil
 }
 
 // | Find a remote endpoint. If the remote endpoint does not yet exist we

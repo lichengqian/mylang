@@ -214,11 +214,13 @@
         (println "flushing...")
         (let err (vst.bufWriter.Flush))
         (when (not= err nil)
-            (println "warn flush failed " err)))
+            (println "warn flush failed " err))))
                 
+(impl ^*RemoteEndPointValid st
     (defn sendRoutine
         "batch send"
         []
+        (let vst &st._1)
         (forever
             (alt!
                 vst.flushTimer.Ch ([_] (vst.flush))
@@ -396,7 +398,52 @@
                 (return nil))
             [RemoteEndPointFailed e]
             (return e))
-        (return (errors.New "resolveInit"))))
+        (return (errors.New "resolveInit")))
+
+    ;; | Set up a remote endpoint
+    (defn setupRemoteEndPoint
+        ^"ConnectionRequestResponse, error"
+        [^*TCPParameters params, ^*RemoteEndPoint theirEndPoint]
+        (let ourAddress ourEndPoint.localAddress
+             theirAddress theirEndPoint.remoteAddress
+             [sock rsp err] (socketToEndPoint ourAddress theirAddress ourEndPoint.shakeHand))
+        (when (not (nil? err))
+            (ourEndPoint.resolveInit theirEndPoint (&RemoteEndPointInvalid. nil (err.Error)))
+            (return nil err))
+        
+        (let theirState &theirEndPoint.remoteState)
+        (match rsp
+            ConnectionRequestAccepted
+            (do
+                (let st (newRemoteEndPointValid sock))
+                (ourEndPoint.resolveInit theirEndPoint st)
+
+                (go (st.sendRoutine))
+                (go (try (params.handleIncomingMessages ourEndPoint theirEndPoint)
+                         (finally (sock.Close)))))
+            
+            ConnectionRequestInvalid
+            (try (let st (&RemoteEndPointInvalid. (ConnectNotFound.) "setupRemoteEndPoint: Invalid endpoint"))
+                 (ourEndPoint.resolveInit theirEndPoint st)
+                 (finally (sock.Close)))
+
+            ConnectionRequestCrossed
+            (try (matchMVar! theirState
+                    [RemoteEndPointInit _ crossed _]
+                    (notify crossed)
+                    [RemoteEndPointFailed e]
+                    (return rsp, e)
+
+                    (ourEndPoint.relyViolation "setupRemoteEndPoint: Crossed"))
+                 (finally (sock.Close)))
+
+            ConnectionRequestHostMismatch
+            (try (let msg "setupRemoteEndPoint: Host mismatch "
+                      st (&RemoteEndPointInvalid. (ConnectFailed.) msg))
+                 (ourEndPoint.resolveInit theirEndPoint st)
+                 (finally (sock.Close))))
+
+        (return rsp nil)))
 
 (impl ^*TCPTransport tp
     ;;; | Create a new local endpoint
