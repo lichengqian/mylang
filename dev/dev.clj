@@ -22,6 +22,8 @@
    [com.stuartsierra.component :as component]
    [com.stuartsierra.component.repl :refer [reset set-init start stop system]]
    [clojure.spec.alpha :as s]
+   [cats.builtin]
+   [cats.core :as m]
 
    [clj-compiler])
   (:use  [mylang]
@@ -45,16 +47,17 @@
 
 (def ^:dynamic *src-dir* "net/transport/tcp")
 
-(defn t []
-  (sh "touch" "src/language/common.clj"))
+(defn reset* []
+  (sh "touch" "src/language/common.clj")
+  (reset))
   
 (defn r []
-  (t)
-  (reset)
+  (reset*)
   (go-make *src-dir*))
 
 (defn- copy-to [target-dir & files]
   (doseq [f files]
+    (println "copying " f)
     (io/copy (io/file *src-dir* f) (io/file target-dir f))))
 
 (defn copy-go [target-dir]
@@ -65,9 +68,6 @@
            "facade.go"
            "node.go"
            "tcp_test.go"
-           "native_test.go"))
-
-;;; just for debug
-(def form (read-forms "net/transport/tcp/types.clj"))
-(def structs (filter (is-form? 'struct) form))
+           "native_test.go"
+           "throttle_timer.go"))
 

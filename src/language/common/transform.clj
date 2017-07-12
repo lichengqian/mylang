@@ -1,7 +1,7 @@
 (in-ns 'language.common)
 
 ;;; Source to Source transfermations
-(def core-macro-symbols #{'if-not 'when-not})
+(def core-macro-symbols #{'if-not 'when-not '-> '->>})
 
 (defn eval-macros [form]
   (let [form-macros (->> (filter (is-form? 'defmacro) form)
