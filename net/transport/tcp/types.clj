@@ -267,19 +267,33 @@
                                         bufWriter (bufio.NewWriterSize conn minWriteBufferSize)}))))
 
 (defn createTCPTransport
-    ^"*TCPTransport, error"
+    ^*TCPTransport
     [^string lAddr]
-    (let
-        tp (newTCPTransport lAddr defaultTCPParameters)
-        err (tp.forkServer tp.handleConnectionRequest))
-    (when (not (nil? err))
-        (return nil err))
-    (return tp nil))
-    
+    (let tp (newTCPTransport lAddr defaultTCPParameters))
+    (<- (tp.forkServer tp.handleConnectionRequest))
+    (return tp))
+
 ;;;------------------------------------------------------------------------------
 
 ;;; API functions                                                              --
 ;;;------------------------------------------------------------------------------
+
+;;; | Create a new endpoint
+(impl ^*TCPTransport tp
+    (defn apiNewEndPoint
+        ^*EndPoint
+        [^EndPointId epid, ^ShakeHand shake]
+        (<- ourEndPoint (tp.createLocalEndPoint epid shake))
+        (return (map->&EndPoint {Close (fn ^Error []
+                                            (return (tp.apiCloseEndPoint 
+                                                        (native "[]Event{EndPointClosed{}}")
+                                                        ourEndPoint)))
+                                 Dial (fn ^"*Connection, error" [^EndPointAddress theirAddress]
+                                            (return (tp.transportParams.apiConnect ourEndPoint theirAddress)))
+                                 Receive (fn ^Event []
+                                            (return (<! ourEndPoint.localQueue)))
+                                 Address (fn ^EndPointAddress []
+                                            (return ourEndPoint.localAddress))}))))
 
 (impl ^*LocalEndPoint ourEndPoint
     (defn apiClose

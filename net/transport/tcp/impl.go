@@ -17,28 +17,6 @@ func (tp *TCPTransport) apiCloseTransport(evs []Event) error {
 	return errors.New("not implemented")
 }
 
-// | Create a new endpoint
-func (tp *TCPTransport) apiNewEndPoint(epid EndPointId, shake ShakeHand) (*EndPoint, error) {
-	ourEndPoint, err := tp.createLocalEndPoint(epid, shake)
-	if err != nil {
-		return nil, err
-	}
-	return &EndPoint{
-		Close: func() error {
-			return tp.apiCloseEndPoint([]Event{EndPointClosed{}}, ourEndPoint)
-		},
-		Dial: func(theirAddress EndPointAddress) (*Connection, error) {
-			return tp.transportParams.apiConnect(ourEndPoint, theirAddress)
-		},
-		Receive: func() Event {
-			return <-ourEndPoint.localQueue
-		},
-		Address: func() EndPointAddress {
-			return ourEndPoint.localAddress
-		},
-	}, nil
-}
-
 // | Connnect to an endpoint
 func (params *TCPParameters) apiConnect(ourEndPoint *LocalEndPoint, theirAddress EndPointAddress) (*Connection, error) {
 	//TODO: connect to self 756
