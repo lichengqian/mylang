@@ -819,42 +819,6 @@ func (ourEndPoint *LocalEndPoint) findRemoteEndPoint(theirAddress EndPointAddres
 	return nil, false, nil
 }
 
-// | Create a new local endpoint
-//
-// May throw a TransportError NewEndPointErrorCode exception if the transport
-// is closed.
-func (tp *TCPTransport) createLocalEndPoint(epid EndPointId, shake ShakeHand) (*LocalEndPoint, error) {
-	tp.transportState.Lock()
-	defer tp.transportState.Unlock()
-
-	switch ts := tp.transportState.value.(type) {
-	case *TransPortValid:
-		vst := &ts._1
-		endpoints := vst._localEndPoints
-
-		if _, ok := endpoints[epid]; ok {
-			return nil, errors.New("endpoint already exist")
-		}
-
-		st := newLocalEndPointState()
-
-		endpoints[epid] = &LocalEndPoint{
-			localAddress: EndPointAddress{tp.transportAddr, epid},
-			localState: struct {
-				value LocalEndPointState
-				sync.Mutex
-			}{value: st},
-			localQueue: make(chan Event, defaultEndPointQueueCapacity),
-			shakeHand:  shake,
-		}
-		return endpoints[epid], nil
-	case TransportClosed:
-		return nil, ErrTransportClosed
-	default:
-		return nil, errors.New("new endpoint failed")
-	}
-}
-
 func createConnectionId(hcid HeavyweightConnectionId, lcid LightweightConnectionId) ConnectionId {
 	return ConnectionId(uint64(uint32(hcid))<<32 | uint64(uint32(lcid)))
 }

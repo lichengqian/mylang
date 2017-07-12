@@ -1,5 +1,10 @@
 (in-ns 'language.golang)
 
+(defmethod go-call 'type
+    [_ v]
+    (str (emit v) 
+        ".(type)"))
+
 (defmethod go-call 'nil?
     [_ v]
     (str (emit v) 
@@ -20,6 +25,12 @@
     (str (emit v) " = " (emit expr) "\n"))
 
 ;; map op 
+(defmethod go-call 'contains?
+    [_ m k]
+    (str "_, ok := "(emit m) 
+        (bracket (emit k))
+        "; ok"))
+
 (defmethod go-call 'get
     [_ m k]
     (str (emit m) 

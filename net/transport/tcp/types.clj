@@ -397,3 +397,26 @@
             [RemoteEndPointFailed e]
             (return e))
         (return (errors.New "resolveInit"))))
+
+(impl ^*TCPTransport tp
+    ;;; | Create a new local endpoint
+    ;;;
+    ;;; May throw a TransportError NewEndPointErrorCode exception if the transport
+    ;;; is closed.
+    (defn createLocalEndPoint
+        ^"*LocalEndPoint, error"
+        [^EndPointId epid, ^ShakeHand shake]
+        (let tpState &tp.transportState)
+        (matchMVar! tpState
+            [TransPortValid vst]
+            (do
+                (let endpoints vst._localEndPoints)
+                (when (contains? endpoints epid)
+                    (return nil (errors.New "endpoint already exist")))
+                (assoc endpoints epid
+                    (map->&LocalEndPoint {localAddress (EndPointAddress. tp.transportAddr epid)
+                                          localState (^LocalEndPointState newMVar (newLocalEndPointState))
+                                          localQueue (native "make(chan Event, defaultEndPointQueueCapacity)")
+                                          shakeHand shake}))
+                (return (get endpoints epid) nil)))
+        (return nil ErrTransportClosed)))
