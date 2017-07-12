@@ -8,18 +8,6 @@ import (
 	"sync"
 )
 
-func createTCPTransport(lAddr string) (*TCPTransport, error) {
-	tp := newTCPTransport(lAddr, defaultTCPParameters)
-
-	err := tp.forkServer(func(conn net.Conn) {
-		tp.handleConnectionRequest(conn)
-	})
-	if err != nil {
-		return nil, err
-	}
-	return tp, nil
-}
-
 //------------------------------------------------------------------------------
 // API functions                                                              --
 //------------------------------------------------------------------------------

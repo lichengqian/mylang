@@ -266,7 +266,18 @@
                                         flushTimer (NewThrottleTimer "flush" flushThrottleMS*time.Millisecond)
                                         bufWriter (bufio.NewWriterSize conn minWriteBufferSize)}))))
 
+(defn createTCPTransport
+    ^"*TCPTransport, error"
+    [^string lAddr]
+    (let
+        tp (newTCPTransport lAddr defaultTCPParameters)
+        err (tp.forkServer tp.handleConnectionRequest))
+    (when (not (nil? err))
+        (return nil err))
+    (return tp nil))
+    
 ;;;------------------------------------------------------------------------------
+
 ;;; API functions                                                              --
 ;;;------------------------------------------------------------------------------
 
