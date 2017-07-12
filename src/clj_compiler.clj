@@ -59,7 +59,15 @@
 (defn go-compile
     "编译一个clj文件，生成同名的golang文件,并格式化"
     ([path]
-     (go-compile path (go-target path)))
+     (cond
+        (string? path) (go-compile path (go-target path))
+        :else (do
+                    (set-language :language.golang/golang)
+                    (-> path
+                        transform
+                        (doto pprint)
+                        emit-script
+                        println))))
             
     ([path target]
      (set-language :language.golang/golang)
