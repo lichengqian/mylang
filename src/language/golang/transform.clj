@@ -85,7 +85,7 @@
 
 (defn alt!->select
   [m]
-  `(select ~@(map channel-op->case (:result-expr m))))
+  `(go:select ~@(map channel-op->case (:result-expr m))))
 
 ;;; (case ) -> (go:switch )
 (s/def ::case
@@ -95,17 +95,35 @@
                                 :action any?))
           :default (s/? any?)))
 
+(s/def ::cond
+  (s/cat  :cond #{'cond}
+          :branches (s/+ (s/cat :condition #(not (= :else %))
+                                :action any?))
+          :default (s/? (s/cat :else #{:else} :action any?))))
+
+(defn- branch->go:case 
+  [m] 
+  `(go:case ~(:condition m) ~(:action m)))
+
 (defn case->go:switch
   [spec]
-  (let [branch->go:case
-        (fn [m]
-          `(go:case ~(:condition m) ~(:action m)))
-        ->go:default
+  (let [->go:default
         (fn [e]
           (if (nil? e)
             '()
             `((go:default ~e))))]
-    `(go:switch ~(:e spec)
+    `(go:switch [~(:e spec)]
+        ~@(m/fmap branch->go:case (:branches spec))
+        ~@(->go:default (:default spec)))))
+
+(defn cond->go:switch
+  [spec]
+  (let [->go:default
+        (fn [e]
+          (if (nil? e)
+            '()
+            `((go:default ~(:action e)))))]
+    `(go:switch []
         ~@(m/fmap branch->go:case (:branches spec))
         ~@(->go:default (:default spec)))))
 
@@ -129,7 +147,9 @@
       alt!->select
 
       ::case
-      case->go:switch)
+      case->go:switch
+      ::cond
+      cond->go:switch)
     form))
 
 (defmethod transform ::golang

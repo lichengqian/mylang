@@ -51,8 +51,3 @@
     (println "withMVar " v)
     (let [sig (with-meta [] (meta f))]
         `(do (lock! ~v) ~@body)))
-
-(defmethod go-call 'select
-    [f & cases]
-    (str "select "
-        (brace (emit-do cases))))

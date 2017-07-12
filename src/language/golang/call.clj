@@ -20,8 +20,11 @@
 
 (defmethod go-call 'go:switch
     [f e & body]
-    (str "switch " (emit e)
-        (braceln (emit-do body))))
+    (let [exprs (->> e
+                    (m/fmap emit)
+                    (string/join "; "))]
+        (str "switch " exprs
+            (braceln (emit-do body)))))
 
 (defmethod go-call 'type
     [_ v]
