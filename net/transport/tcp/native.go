@@ -177,7 +177,7 @@ func (transport *TCPTransport) forkServer(handler func(net.Conn)) error {
 		return err
 	}
 
-	actualAddr := ln.Addr().String()
+	actualAddr := MkExternalAddress(string(lAddr))
 	fmt.Println("transport linsten on :", actualAddr)
 	transport.transportAddr = TransportAddr(actualAddr)
 
@@ -284,6 +284,37 @@ func recvControlHeader(r io.Reader) (ControlHeader, error) {
 		return nil, err
 	}
 	return decodeControlHeader(uint8(n)), nil
+}
+
+func getNaiveExternalAddress(port string) string {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		panic(fmt.Sprintf("Could not fetch interface addresses: %v", err))
+	}
+
+	for _, a := range addrs {
+		ipnet, ok := a.(*net.IPNet)
+		if !ok {
+			continue
+		}
+		v4 := ipnet.IP.To4()
+		if v4 == nil || v4[0] == 127 {
+			continue
+		} // loopback
+		return fmt.Sprintf("%s:%s", ipnet.IP, port)
+	}
+	panic("Could not find external addresse")
+}
+
+func MkExternalAddress(lAddr string) string {
+	host, port, err := net.SplitHostPort(lAddr)
+	if err != nil {
+		return lAddr
+	}
+	if host == "0.0.0.0" {
+		return getNaiveExternalAddress(port)
+	}
+	return lAddr
 }
 
 //-----------------------------------------------------------------------------

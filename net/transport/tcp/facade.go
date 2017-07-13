@@ -19,6 +19,7 @@ func NewEndPointAddress(lAddr string, ep int) EndPointAddress {
 type Transport struct {
 	Close       func() error
 	NewEndPoint func(EndPointId, ShakeHand) (*EndPoint, error)
+	Address     func() string
 }
 
 type EndPoint struct {
@@ -55,6 +56,9 @@ func (transport *TCPTransport) ToTransport() *Transport {
 		},
 		NewEndPoint: func(epid EndPointId, shake ShakeHand) (*EndPoint, error) {
 			return transport.apiNewEndPoint(epid, shake)
+		},
+		Address: func() string {
+			return string(transport.transportAddr)
 		},
 	}
 }

@@ -127,7 +127,8 @@ func TestRecover(t *testing.T) {
 	}()
 
 	// _acc := 0
-
+	fmt.Println("external address:", MkExternalAddress("127.0.0.1:99"))
+	fmt.Println("external address:", MkExternalAddress("0.0.0.0:99"))
 	panic(errors.New("hello, error"))
 }
 

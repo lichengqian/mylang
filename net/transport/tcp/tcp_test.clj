@@ -157,19 +157,21 @@
 
 ;;; Test connecting to invalid or non-existing endpoints
 (deftest invalidConnect
-    (<- tp (CreateTransport "127.0.0.1:9999"))
+    (<- tp (CreateTransport "0.0.0.0:9999"))
     (<- ep (tp.NewEndPoint 1000 nil))
 
     ;; Syntax connect, but invalid hostname (TCP address lookup failure)
     (let [conn2, err] (ep.Dial (NewEndPointAddress "invalidAddress", 0)))
     (println conn2 err)
 
+    (let lAddr (tp.Address))
+    (println lAddr)
     ;; TCP address correct, but nobody home at that address
-    (let [conn3, err] (ep.Dial (NewEndPointAddress "127.0.0.1:9000", 0)))
+    (let [conn3, err] (ep.Dial (NewEndPointAddress "192.168.24.70:9000", 0)))
     (println conn3 err)
 
     ;; Valid TCP address but invalid endpoint number
-    (let [conn4, err] (ep.Dial (NewEndPointAddress "127.0.0.1:9999", 900)))
+    (let [conn4, err] (ep.Dial (NewEndPointAddress lAddr, 900)))
     (println conn4 err))
 
 ;;; | Test that an endpoint can ignore CloseSocket requests (in "reality" this)
