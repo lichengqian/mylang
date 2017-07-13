@@ -1,5 +1,3 @@
-(import "time")
-
 (type TransportAddr String)
 (type EndPointId UInt32)
 (type LightweightConnectionId UInt32)
@@ -267,7 +265,7 @@
         (map->ValidRemoteEndPointState {remoteConn conn
                                         _remoteNextConnOutId firstNonReservedLightweightConnectionId
                                         sendQueue (native "make(chan Sender, 1000)")
-                                        flushTimer (NewThrottleTimer "flush" flushThrottleMS*time.Millisecond)
+                                        flushTimer (NewThrottleTimer "flush" flushThrottleMS)
                                         bufWriter (BufferedOutputStream. conn minWriteBufferSize)}))))
 
 (defn createTCPTransport

@@ -22,7 +22,8 @@ type ThrottleTimer struct {
 	isSet bool
 }
 
-func NewThrottleTimer(name string, dur time.Duration) *ThrottleTimer {
+func NewThrottleTimer(name string, throttleMS time.Duration) *ThrottleTimer {
+	dur := throttleMS * time.Millisecond
 	var ch = make(chan struct{})
 	var quit = make(chan struct{})
 	var t = &ThrottleTimer{Name: name, Ch: ch, dur: dur, quit: quit}
