@@ -453,6 +453,10 @@
 (defmulti ctor-call
     (fn [f & args] (simple-symbol f)))
 
+;; 类型构造函数调用
+(defmulti type-call
+    (fn [f & args] (simple-symbol f)))
+
 (defmulti dot-call
     (fn [f & args] (simple-symbol f)))
 

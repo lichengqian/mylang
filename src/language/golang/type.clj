@@ -23,8 +23,8 @@
       "BufferedOutputStream"  (do (add-import "bufio") "*bufio.Writer")
       (emit t))))
 
-(defmethod emit-type-constructor ::golang
-  [c args]
+(defmethod type-call :default
+  [c & args]
   (case (str c)
     "Either" (str "(" (emit-type (second args)) ", " (emit-type (first args)) ")")
     "Map" (str "map[" (emit-type (first args)) "]" (emit-type (second args)))
@@ -43,6 +43,11 @@
         (map emit-type)
         (string/join " ")
         (str (emit-type c) " "))))
+  
+
+(defmethod emit-type-constructor ::golang
+  [c args]
+  (apply type-call c args))
         
 (defn- settype? 
   [type-exp]

@@ -137,7 +137,7 @@
 (def minWriteBufferSize 65536)
 (def flushThrottleMS 100)
 
-(type Sender "func (io.Writer)")
+(type Sender (fn [OutputStream]))
 
 ;;; transport definition
 

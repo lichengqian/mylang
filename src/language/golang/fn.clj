@@ -101,3 +101,10 @@
   [_ [ _ self & decls]]
   (with-bindings {#'*self* (paren (emit-arg self))}
     (emit-do decls)))
+
+
+(defmethod type-call 'fn
+  [_ sig]
+  (cl-format nil "func (~{~A~^, ~}) ~A"
+    (map emit-type sig)
+    (emit-type (typeof sig))))
