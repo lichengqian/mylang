@@ -1,4 +1,3 @@
-(import "io")
 (import "time")
 
 (type TransportAddr String)
@@ -319,7 +318,7 @@
                         (return nil))))
         
         (when (not (nil? st))
-            (st.sendOn (fn [^io.Writer conn]
+            (st.sendOn (fn [^OutputStream conn]
                            (sendCloseConnection (uint32 connId) conn))))
         (ourEndPoint.closeIfUnused theirEndPoint)
         (return nil))
@@ -354,7 +353,7 @@
             (if (connAlive.IsSet)
                 (do
                     (vst.sendOn
-                        (fn [^io.Writer conn]
+                        (fn [^OutputStream conn]
                             (connId.sendMsg msg conn)))
                     (return (count msg) nil))
                 (return 0 ErrConnectionClosed)))
@@ -372,7 +371,7 @@
                     (&RemoteEndPointClosing. (newNotifier) *vst))
                 (println "close unused connection to ", theirEndPoint.remoteAddress)
                 (vst.sendOn
-                    (fn [^io.Writer conn]
+                    (fn [^OutputStream conn]
                         (sendCloseSocket (uint32 vst._remoteLastIncoming) conn))))))
 
     (defn getRemoteEndPoint

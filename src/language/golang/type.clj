@@ -19,6 +19,7 @@
       "Listener" (do (add-import "net") "net.Listener")
       "Conn" (do (add-import "net") "net.Conn")
 
+      "OutputStream"  (do (add-import "io") "io.Writer")
       "BufferedOutputStream"  (do (add-import "bufio") "*bufio.Writer")
       (emit t))))
 
