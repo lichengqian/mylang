@@ -449,13 +449,17 @@
 (defmulti go-call
     (fn [f & args] (simple-symbol f)))
 
+;; 构造函数调用
+(defmulti ctor-call
+    (fn [f & args] (simple-symbol f)))
+
 (defmulti dot-call
     (fn [f & args] (simple-symbol f)))
 
 (defmethod emit-special [::golang 'dot-method]
   [_ form]
   (apply dot-call form))
-  
+
 (load "golang/transform")
 (load "golang/struct")
 (load "golang/enum")

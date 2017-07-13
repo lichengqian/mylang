@@ -18,6 +18,8 @@
 
       "Listener" (do (add-import "net") "net.Listener")
       "Conn" (do (add-import "net") "net.Conn")
+
+      "BufferedOutputStream"  (do (add-import "bufio") "*bufio.Writer")
       (emit t))))
 
 (defmethod emit-type-constructor ::golang

@@ -62,15 +62,24 @@
     (str (emit m) 
         (bracket (emit k))))
 
+;;; native map support
+
 (defmethod dot-call '.put
   [_ m k v]
   (cl-format nil "~A[~A] = ~A\n"
     (emit m) (emit k) (emit v)))
 
+
 (defmethod dot-call '.remove
   [_ m k]
   (cl-format nil "delete(~A, ~A)"
     (emit m) (emit k)))
+
+;;; native OutputStream support
+
+(defmethod dot-call '.flush
+  [_ stream]
+  (str (emit stream) ".Flush()"))
 
 (defmethod go-call 'defer
     [_ & expr]
@@ -102,6 +111,23 @@
     [name & args]
     (go-call-default name args))
 
+;; native ctor support
+
+(defmethod ctor-call 'BufferedOutputStream
+  [_ & args]
+  (add-import "bufio")
+  (cl-format nil "bufio.NewWriterSize(~{~A~^, ~})"
+    (map emit args)))
+
+;; TODO: enum constructor ?
+(defmethod ctor-call :default
+  [c & args]
+  (->> args
+            (map emit)
+            (string/join ", ")
+            brace
+            (str (str c))))
+
 ;; We would like to be able to add source comments for each argument of a
 ;; function inline, but this is not possible (only works in a |, || or &&
 ;; pipeline).
@@ -110,12 +136,10 @@
 ;   (println "function-call:" name args)
   (if (symbol? name)
     (cond
-        (string/ends-with? (str name) ".")    ; enum constructor
-        (->> args
-            (map emit)
-            (string/join ", ")
-            brace
-            (str (.substring (str name) 0 (- (count (str name)) 1))))
+        (string/ends-with? (str name) ".")    ; ctor call
+        (apply ctor-call 
+            (.substring (str name) 0 (- (count (str name)) 1))
+            args)
 
         (string/starts-with? (str name) "map->")  ; struct constructor 
         (do

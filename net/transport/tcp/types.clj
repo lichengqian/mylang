@@ -1,26 +1,28 @@
 (import "io")
-(import "bufio")
 (import "time")
 
 (type TransportAddr String)
-
 (type EndPointId UInt32)
 (type LightweightConnectionId UInt32)
 (type HeavyweightConnectionId UInt32)
 (type ConnectionId UInt64)
+
 
 (struct TCPTransport
     transportAddr TransportAddr
     transportState (MVar TransportState)
     transportParams *TCPParameters)
 
+
 (enum TransportState
     (TransPortValid ValidTransportState)
     TransportClosed)
 
+
 (struct ValidTransportState
     _localEndPoints (Map EndPointId *LocalEndPoint)
     _nextEndPointId EndPointId)
+
 
 (struct LocalEndPoint
     localAddress EndPointAddress
@@ -28,14 +30,17 @@
     localQueue   (Chan Event)
     shakeHand  ShakeHand)
 
+
 (enum LocalEndPointState
     (LocalEndPointValid ValidLocalEndPointState)
     LocalEndPointClosed)
     
+
 (struct ValidLocalEndPointState
     _localNextConnOutId   LightweightConnectionId
     _nextConnInId       HeavyweightConnectionId
     _localConnections   (Map EndPointAddress *RemoteEndPoint))
+
 
 ;;; REMOTE ENDPOINTS
 
@@ -74,7 +79,7 @@
     ;; for batch send
     sendQueue    (Chan Sender)  ; send queue
     flushTimer   *ThrottleTimer ; flush writes as necessary but throttled.
-    bufWriter   *bufio.Writer)
+    bufWriter   BufferedOutputStream)
 
 ;;; Parameters for setting up the TCP transport
 (struct TCPParameters
@@ -212,7 +217,7 @@
     (defn flush []
         ; (lock! vst.remoteSendLock)
         (println "flushing...")
-        (let err (vst.bufWriter.Flush))
+        (let err (.flush vst.bufWriter))
         (when (not= err nil)
             (println "warn flush failed " err))))
                 
@@ -264,7 +269,7 @@
                                         _remoteNextConnOutId firstNonReservedLightweightConnectionId
                                         sendQueue (native "make(chan Sender, 1000)")
                                         flushTimer (NewThrottleTimer "flush" flushThrottleMS*time.Millisecond)
-                                        bufWriter (bufio.NewWriterSize conn minWriteBufferSize)}))))
+                                        bufWriter (BufferedOutputStream. conn minWriteBufferSize)}))))
 
 (defn createTCPTransport
     ^*TCPTransport
