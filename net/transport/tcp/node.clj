@@ -95,7 +95,7 @@
                                               onConnect onConnect})) 
                             
         (when (== nil (get vst.localSwitches sid))
-            (assoc vst.localSwitches sid &localChannel)
+            (.put vst.localSwitches sid &localChannel)
             (return &localChannel))                     
         (throw (str "local channel exist!" sid)))
 
@@ -110,8 +110,8 @@
         (if (nil? localSwitch_)
             (throw "local switch closed")
             (do
-                (dissoc vst.localSwitches localChannel.channelID)
-                (dissoc vst.localConnections localChannel.channelID)
+                (.remove vst.localSwitches localChannel.channelID)
+                (.remove vst.localConnections localChannel.channelID)
                 (return nil))))
     ; LocalNodeClosed
     (throw "local node closed"))
@@ -147,10 +147,10 @@
         st (initConnectionState)
          
         invalidRequest  (fn [^ConnectionId cid ^String msg]
-                            (dissoc  st.incoming, cid))
+                            (.remove  st.incoming, cid))
 
         onConnectionOpened  (fn [^ConnectionId cid, ^EndPointAddress ep]
-                                (assoc st.incoming cid (&IncomingConnection. ep (Uninit.)))
+                                (.put st.incoming cid (&IncomingConnection. ep (Uninit.)))
                                 (assoc-in st.incomingFrom [ep] cid))
 
         onConnectionClosed  (fn [^ConnectionId cid]
@@ -158,8 +158,8 @@
                                 (if (nil? pConn)
                                     (invalidRequest cid "closed unknown connection")
                                     (do
-                                        (dissoc st.incoming cid)
-                                        (dissoc (get st.incomingFrom pConn.theirAddress) cid))))
+                                        (.remove st.incoming cid)
+                                        (.remove (get st.incomingFrom pConn.theirAddress) cid))))
         
         onReceived  (fn [^ConnectionId cid, ^ByteString payload]
                         (let pConn (get st.incoming cid))
@@ -174,9 +174,9 @@
                                                     (decodeChannelID payload)))
                                     
                                     (if (nil? pSwitch)
-                                        (dissoc  st.incoming cid)
+                                        (.remove  st.incoming cid)
                                         (do
-                                            (assoc st.incoming cid 
+                                            (.put st.incoming cid 
                                                 (&IncomingConnection. pConn.theirAddress (&ToChannel. pSwitch)))
                                             ;; call onConnect callback
                                             (when (not (nil? pSwitch.onConnect))
@@ -197,7 +197,7 @@
                                         "for cid, _ := range st.incomingFrom[addr] {"
                                         "   delete(st.incoming, cid)"
                                         "}")
-                                    (dissoc  st.incomingFrom addr))
+                                    (.remove  st.incomingFrom addr))
 
                                 EventEndPointFailed (return true)
                                 EventTransportFailed (return true))

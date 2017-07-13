@@ -111,7 +111,7 @@
         [^*LocalEndPoint ourEndPoint]
         (withValidTransportState! transport *vst
             (let epid ourEndPoint.localAddress.EndPointId)
-            (dissoc vst._localEndPoints epid))))
+            (.remove vst._localEndPoints epid))))
 
 (defmacro withValidLocalEndPointState! [ourEndPoint vst & body]
     (let [st (symbol (str "&" ourEndPoint ".localState"))
@@ -130,7 +130,7 @@
  If the local endpoint is closed, do nothing"
         [^*RemoteEndPoint theirEndPoint]
         (withValidLocalEndPointState! ourEndPoint *vst
-            (dissoc vst._localConnections theirEndPoint.remoteAddress))))
+            (.remove vst._localConnections theirEndPoint.remoteAddress))))
 
 (def minWriteBufferSize 65536)
 (def flushThrottleMS 100)
@@ -485,7 +485,7 @@
                 (let endpoints vst._localEndPoints)
                 (when (contains? endpoints epid)
                     (return nil (errors.New "endpoint already exist")))
-                (assoc endpoints epid
+                (.put endpoints epid
                     (map->&LocalEndPoint {localAddress (EndPointAddress. tp.transportAddr epid)
                                           localState (^LocalEndPointState newMVar (newLocalEndPointState))
                                           localQueue (native "make(chan Event, defaultEndPointQueueCapacity)")

@@ -62,25 +62,15 @@
     (str (emit m) 
         (bracket (emit k))))
 
-(defmethod go-call 'assoc
-    [_ m & kvs]
-    ; (println "calling assoc......")
-    (->> (partition 2 kvs)
-        (map (fn [[k v]]
-                (str  (emit m)
-                    (bracket (emit k))
-                    " = "
-                    (emit v)
-                    "\n")))
-        string/join))
+(defmethod dot-call '.put
+  [_ m k v]
+  (cl-format nil "~A[~A] = ~A\n"
+    (emit m) (emit k) (emit v)))
 
-(defmethod go-call 'dissoc
-    [_ m k]
-    (str "delete" 
-        (paren 
-            (str (emit m)
-                ", "
-                (emit k)))))
+(defmethod dot-call '.remove
+  [_ m k]
+  (cl-format nil "delete(~A, ~A)"
+    (emit m) (emit k)))
 
 (defmethod go-call 'defer
     [_ & expr]
