@@ -611,40 +611,6 @@ func (params *TCPParameters) createSocketTo_go(ourEndPoint *LocalEndPoint, their
 	return theirEndPoint, nil
 }
 
-func (theirEndPoint *RemoteEndPoint) newConnection() (LightweightConnectionId, error) {
-	var action func()
-	connId, err := func() (LightweightConnectionId, error) {
-		theirState := &theirEndPoint.remoteState
-		theirState.Lock()
-		defer theirState.Unlock()
-
-		switch st := theirState.value.(type) {
-		case *RemoteEndPointValid:
-			vst := &st._1
-			connId := vst._remoteNextConnOutId
-			vst._remoteNextConnOutId = connId + 1
-			vst._remoteOutgoing++
-			fmt.Println("	remoteOutgoing++:", vst._remoteOutgoing)
-			action = func() {
-				vst.sendOn(func(conn io.Writer) {
-					sendCreateNewConnection(uint32(connId), conn)
-				})
-			}
-			return connId, nil
-		case *RemoteEndPointInvalid:
-			return 0, errors.New(st._1.String())
-		case *RemoteEndPointFailed:
-			return 0, st._1
-		}
-		return 0, errors.New("newConnection")
-	}()
-
-	if action != nil {
-		action()
-	}
-	return connId, err
-}
-
 // | Find a remote endpoint. If the remote endpoint does not yet exist we
 // create it in Init state. Returns if the endpoint was new, or 'Nothing' if
 // it times out.

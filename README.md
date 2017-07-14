@@ -6,6 +6,7 @@
 
 ## 语法
 
+* def / defn
 * struct
 * enum
 * type alias
@@ -13,6 +14,7 @@
 * main
 * go
 * deferr
+* dot-call
 
 ## test support
 
@@ -21,6 +23,7 @@
 ## Target
 
 * golang
+* clojure
 
 
 ## Change Log

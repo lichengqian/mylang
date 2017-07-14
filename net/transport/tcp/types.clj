@@ -494,3 +494,28 @@
                                           shakeHand shake}))
                 (return (get endpoints epid) nil)))
         (return nil ErrTransportClosed)))
+
+
+(impl ^*RemoteEndPoint theirEndPoint
+  (defn newConnection
+    ^"LightweightConnectionId, error" []
+    (let theirState &theirEndPoint.remoteState)
+    (matchMVar! theirState
+      [RemoteEndPointValid *vst]
+      (do
+        (let connId vst._remoteNextConnOutId)
+        (set vst._remoteNextConnOutId (+ connId 1))
+        vst._remoteOutgoing++
+        (println "	remoteOutgoing++:", vst._remoteOutgoing)
+        (vst.sendOn
+          (fn [^OutputStream conn]
+            (sendCreateNewConnection (uint32 connId) conn)))
+        (return connId nil))
+
+      [RemoteEndPointInvalid e]
+      (return 0 (-> (e.String) errors.New))
+
+      [RemoteEndPointFailed e]
+      (return 0 e))
+
+    (return 0 (errors.New "newConnection"))))
