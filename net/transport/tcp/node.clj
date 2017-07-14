@@ -1,22 +1,26 @@
 
-
 (type ChannelID UInt64)
 
+
 (struct LocalNode
-    localEndPoint *EndPoint
-    localState  (MVar LocalNodeState)
-    localCtrlChan (Chan NCMsg))
+    localEndPoint   *EndPoint
+    localState      (MVar LocalNodeState)
+    localCtrlChan   (Chan NCMsg))
+
 
 (enum LocalNodeState
     (LocalNodeValid ValidLocalNodeState)
     LocalNodeClosed)
 
+
 (type OutgoingConnectionMap (Map ChannelID (Map EndPointAddress *Connection)))
 
-(defrecord ValidLocalNodeState
-    [^"map[ChannelID]*LocalChannel" localSwitches
+
+(struct ValidLocalNodeState
+    localSwitches       (Map ChannelID *LocalChannel)
     ;; | Outgoing connections
-     ^OutgoingConnectionMap localConnections])
+    localConnections    OutgoingConnectionMap)
+
 
 (defmacro withValidLocalNodeState! [node vst & body]
     (let [st (symbol (str "&" node ".localState"))
@@ -26,6 +30,7 @@
             (match ~v
                 [LocalNodeValid ~vst]
                 (do ~@body)))))
+
 
 (impl ^*LocalNode localNode
     (defn getLocalChannel ^*LocalChannel [^ChannelID chanID]
@@ -43,31 +48,30 @@
         
         (return nil)))
 
+
 (def defaultChannelQueueCapacity 4096)
 
-(defrecord LocalChannel
-    [^ChannelID channelID
-     ^*LocalNode localNode
-     ^"chan Message" Queue
-     ^"func (EndPointAddress)" onConnect])
-    ; switchState (MVar LocalSwitchState))
 
-; (struct LocalSwitchState
-;     switchQueue  (Chan Message))
+(struct LocalChannel
+    channelID       ChannelID
+    localNode       *LocalNode
+    Queue           (Chan Message)
+    onConnect       (fn [EndPointAddress]))
+
 
 ;;;------------------------------------------------------------------------------
 ;;; Messages                                                                   --
 ;;;------------------------------------------------------------------------------
-(defrecord Message
-    [^EndPointAddress From
-     ^ByteString Payload])
+(struct Message
+    From        EndPointAddress
+    Payload     ByteString)
+
 
 (defn NewLocalNode ^*LocalNode [^*Transport transport, ^ShakeHand shake]
     (<- endpoint (transport.NewEndPoint 0 shake))
     (let 
         st (LocalNodeValid. (map->ValidLocalNodeState 
-                                {localSwitches (native "make(map[ChannelID]*LocalChannel)")
-                                 localConnections (newOutgoingConnectionMap)}))
+                                {localConnections (newOutgoingConnectionMap)}))
         node (map->LocalNode
                 {localEndPoint endpoint
                  localState (^LocalNodeState newMVar &st)})
@@ -85,6 +89,7 @@
 
     (return &node))
 
+
 (defn NewLocalChannel ^*LocalChannel
     [^*LocalNode localNode, ^ChannelID sid, ^"func (EndPointAddress)" onConnect]
 
@@ -101,6 +106,7 @@
 
     ; LocalNodeClosed
     (throw "local node closed"))
+
 
 (defn CloseLocalChannel
     [^*LocalChannel localChannel]
@@ -120,27 +126,30 @@
 ;;; Handle incoming messages                                                   --
 ;;;------------------------------------------------------------------------------
 
-(defrecord IncomingConnection
-    [^EndPointAddress theirAddress
-     ^IncomingTarget  theirTarget])
+(struct IncomingConnection
+    theirAddress        EndPointAddress
+    theirTarget         IncomingTarget)
+
 
 (enum IncomingTarget
     Uninit
     (ToChannel *LocalChannel)
     ToNode)
 
+
 (type IncomingConnectionMap (Map EndPointAddress (Set ConnectionId)))
 
-(defrecord ConnectionState
-    [^"map[ConnectionId]*IncomingConnection" incoming
-     ^IncomingConnectionMap incomingFrom])
+
+(struct ConnectionState
+    incoming        (Map ConnectionId *IncomingConnection)
+    incomingFrom    IncomingConnectionMap)
+
 
 (defn initConnectionState ^*ConnectionState []
-    (native
-        "return &ConnectionState {
-            incoming: make(map[ConnectionId]*IncomingConnection),
-            incomingFrom: newIncomingConnectionMap(),
-         }"))
+    (return
+        (map->&ConnectionState
+            {incomingFrom (newIncomingConnectionMap)})))
+
 
 (defn handleNodeMessages [^*LocalNode localNode]
     (let 
@@ -235,6 +244,7 @@
     (<- _ (connBetween node localChannel.channelID to))
     (return nil))
 
+
 (defn SendPayload
     [^*LocalChannel LocalChannel ^EndPointAddress to ^ByteString payload]
     (let node LocalChannel.localNode)
@@ -243,6 +253,7 @@
     (println bytes)
     ; (>! node.localCtrlChan (NCMsg. to (&Died. to (DiedDisconnect.))))
     (return nil))
+
 
 (defn setupConnBetween ^*Connection
     [^*LocalNode node ^ChannelID from ^EndPointAddress to]
@@ -255,6 +266,7 @@
             (assoc-in vst.localConnections [from to] conn))
         (return conn))
     (throw "conn failed"))
+
 
 (defn connBetween ^*Connection
     [^*LocalNode node ^ChannelID from ^EndPointAddress to]
@@ -277,21 +289,25 @@
      return 0
     }")
 
+
 ;;; | Why did a channel die?
 (enum DiedReason
     DiedDisconnect
     DiedNodeDown)
 
+
 ;;; | Messages to the node controller
-(defrecord NCMsg
-    [^Identifier ctrlMsgSender
-     ^Signal     ctrlMsgSignal])
+(struct NCMsg
+    ctrlMsgSender       Identifier
+    ctrlMsgSignal       Signal)
+
 
 ;;; | Signals to the node controller (see 'NCMsg')
 (enum Signal
     (Died Identifier DiedReason)
     (Kill ChannelID String)
     SigShutdown)
+
 
 ;;;------------------------------------------------------------------------------
 ;;; Top-level access to the node controller                                    --

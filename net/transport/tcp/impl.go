@@ -599,7 +599,12 @@ func (params *TCPParameters) createConnectionTo_go(ourEndPoint *LocalEndPoint, t
 		}
 		return params.createConnectionTo_go(ourEndPoint, theirAddress, rsp2)
 	}
-	// 'findRemoteEndPoint' will have increased 'remoteOutgoing'
+
+	connId, err := theirEndPoint.newConnection()
+	return theirEndPoint, connId, err
+}
+
+func (theirEndPoint *RemoteEndPoint) newConnection() (LightweightConnectionId, error) {
 	var action func()
 	connId, err := func() (LightweightConnectionId, error) {
 		theirState := &theirEndPoint.remoteState
@@ -611,6 +616,8 @@ func (params *TCPParameters) createConnectionTo_go(ourEndPoint *LocalEndPoint, t
 			vst := &st._1
 			connId := vst._remoteNextConnOutId
 			vst._remoteNextConnOutId = connId + 1
+			vst._remoteOutgoing++
+			fmt.Println("	remoteOutgoing++:", vst._remoteOutgoing)
 			action = func() {
 				vst.sendOn(func(conn io.Writer) {
 					sendCreateNewConnection(uint32(connId), conn)
@@ -622,13 +629,13 @@ func (params *TCPParameters) createConnectionTo_go(ourEndPoint *LocalEndPoint, t
 		case *RemoteEndPointFailed:
 			return 0, st._1
 		}
-		return 0, errors.New("createConnectionTo")
+		return 0, errors.New("newConnection")
 	}()
 
 	if action != nil {
 		action()
 	}
-	return theirEndPoint, connId, err
+	return connId, err
 }
 
 // | Find a remote endpoint. If the remote endpoint does not yet exist we
@@ -677,16 +684,6 @@ func (ourEndPoint *LocalEndPoint) findRemoteEndPoint(theirAddress EndPointAddres
 		theirState.Lock()
 		defer theirState.Unlock()
 
-		switch p := theirState.value.(type) {
-		case *RemoteEndPointValid:
-			vst := &p._1
-			switch findOrigin.(type) {
-			case RequestedByUs:
-				vst._remoteOutgoing++
-				fmt.Println("	remoteOutgoing++:", vst._remoteOutgoing)
-				return theirState.value
-			}
-		}
 		return theirState.value
 	}()
 
