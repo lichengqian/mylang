@@ -565,10 +565,19 @@ func (params *TCPParameters) handleIncomingMessages(ourEndPoint *LocalEndPoint, 
 //
 // May throw a TransportError ConnectErrorCode exception.
 func (params *TCPParameters) createConnectionTo(ourEndPoint *LocalEndPoint, theirAddress EndPointAddress) (*RemoteEndPoint, LightweightConnectionId, error) {
-	return params.createConnectionTo_go(ourEndPoint, theirAddress, nil)
+	theirEndPoint, err := params.createSocketTo_go(ourEndPoint, theirAddress, nil)
+	if err != nil {
+		return nil, firstNonReservedLightweightConnectionId, err
+	}
+	connId, err := theirEndPoint.newConnection()
+	return theirEndPoint, connId, err
 }
 
-func (params *TCPParameters) createConnectionTo_go(ourEndPoint *LocalEndPoint, theirAddress EndPointAddress, rsp ConnectionRequestResponse) (*RemoteEndPoint, LightweightConnectionId, error) {
+func (params *TCPParameters) createSocketTo(ourEndPoint *LocalEndPoint, theirAddress EndPointAddress) (*RemoteEndPoint, error) {
+	return params.createSocketTo_go(ourEndPoint, theirAddress, nil)
+}
+
+func (params *TCPParameters) createSocketTo_go(ourEndPoint *LocalEndPoint, theirAddress EndPointAddress, rsp ConnectionRequestResponse) (*RemoteEndPoint, error) {
 	theirEndPoint, isNew, err := ourEndPoint.findRemoteEndPoint(theirAddress, RequestedByUs{})
 	switch rsp.(type) {
 	case ConnectionRequestCrossed:
@@ -588,7 +597,7 @@ func (params *TCPParameters) createConnectionTo_go(ourEndPoint *LocalEndPoint, t
 	}
 
 	if err != nil {
-		return nil, firstNonReservedLightweightConnectionId, err
+		return nil, err
 	}
 
 	if isNew {
@@ -597,11 +606,9 @@ func (params *TCPParameters) createConnectionTo_go(ourEndPoint *LocalEndPoint, t
 		if err != nil {
 			// return theirEndPoint, firstNonReservedLightweightConnectionId, err
 		}
-		return params.createConnectionTo_go(ourEndPoint, theirAddress, rsp2)
+		return params.createSocketTo_go(ourEndPoint, theirAddress, rsp2)
 	}
-
-	connId, err := theirEndPoint.newConnection()
-	return theirEndPoint, connId, err
+	return theirEndPoint, nil
 }
 
 func (theirEndPoint *RemoteEndPoint) newConnection() (LightweightConnectionId, error) {
