@@ -32,7 +32,7 @@
     (->> exprs
         (partition 2)
         (m/fmap first)
-        (filter vector?)
+        (filter #(and (vector? %) (> (count %) 1)))
         empty?))
 
 (defmethod emit-special [::golang 'match]

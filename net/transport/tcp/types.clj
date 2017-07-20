@@ -519,3 +519,33 @@
       (return 0 e))
 
     (return 0 (errors.New "newConnection"))))
+
+
+(impl ^*LocalEndPoint ourEndPoint
+  ;;; Deal with a premature exit
+  (defn prematureExit
+    [^*RemoteEndPoint theirEndPoint, ^Error err]
+    (println "in prematureExit:" err)
+    (let  ourState  &ourEndPoint.localState
+          theirAddress theirEndPoint.remoteAddress
+          theirState &theirEndPoint.remoteState)
+    (matchMVar! theirState
+      [RemoteEndPointValid]
+      (do
+        (let code (&EventConnectionLost. theirAddress))
+        (>! ourEndPoint.localQueue (&ErrorEvent. code err))
+        (set theirState.value (&RemoteEndPointFailed. err)))
+      [RemoteEndPointClosing resolved]
+      (do
+        (notify resolved)
+        (set theirState.value (&RemoteEndPointFailed. err)))
+      [RemoteEndPointFailed]
+      (do
+        (lock! ourState)
+        (match ourState.value
+          [LocalEndPointValid]
+          (do
+            (let code (&EventConnectionLost. theirAddress))
+            (>! ourEndPoint.localQueue (&ErrorEvent. code err))))))
+
+    (ourEndPoint.relyViolation "handleIncomingMessages:prematureExi")))

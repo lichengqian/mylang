@@ -229,35 +229,6 @@ func (tp *TCPTransport) handleConnectionRequestForEndPoint(ourEndPoint *LocalEnd
 func (params *TCPParameters) handleIncomingMessages(ourEndPoint *LocalEndPoint, theirEndPoint *RemoteEndPoint) {
 	theirAddress := theirEndPoint.remoteAddress
 
-	// Deal with a premature exit
-	prematureExit := func(err error) {
-		fmt.Println("in prematureExit:", err)
-		theirState := &theirEndPoint.remoteState
-		theirState.Lock()
-		defer theirState.Unlock()
-
-		switch st := theirState.value.(type) {
-		case *RemoteEndPointInvalid, *RemoteEndPointInit, RemoteEndPointClosed:
-			ourEndPoint.relyViolation("handleIncomingMessages:prematureExi")
-		case *RemoteEndPointValid:
-			// vst := &st._1
-			code := &EventConnectionLost{theirAddress}
-			ourEndPoint.localQueue <- &ErrorEvent{code, err}
-			theirEndPoint.remoteState.value = &RemoteEndPointFailed{err}
-		case *RemoteEndPointClosing:
-			notify(st._1)
-			theirEndPoint.remoteState.value = &RemoteEndPointFailed{err}
-		case *RemoteEndPointFailed:
-			ourEndPoint.localState.Lock()
-			defer ourEndPoint.localState.Unlock()
-
-			if _, ok := ourEndPoint.localState.value.(*LocalEndPointValid); ok {
-				code := &EventConnectionLost{theirAddress}
-				ourEndPoint.localQueue <- &ErrorEvent{code, err}
-			}
-		}
-	}
-
 	sock, err := func() (net.Conn, error) {
 		theirState := &theirEndPoint.remoteState
 		theirState.Lock()
@@ -281,7 +252,7 @@ func (params *TCPParameters) handleIncomingMessages(ourEndPoint *LocalEndPoint, 
 	}()
 
 	if err != nil {
-		prematureExit(err)
+		ourEndPoint.prematureExit(theirEndPoint, err)
 		return
 	}
 
@@ -553,7 +524,7 @@ func (params *TCPParameters) handleIncomingMessages(ourEndPoint *LocalEndPoint, 
 	}()
 
 	if err != nil {
-		prematureExit(err)
+		ourEndPoint.prematureExit(theirEndPoint, err)
 	}
 	fmt.Println("handleIncomingMessages exit!---", theirAddress)
 }
