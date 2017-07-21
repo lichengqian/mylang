@@ -268,35 +268,6 @@ func (params *TCPParameters) handleIncomingMessages(ourEndPoint *LocalEndPoint, 
 		return nil
 	}
 
-	closeRemoteEndPoint := func(vst *ValidRemoteEndPointState) {
-		// close incoming connections
-		for k := range vst._remoteIncoming {
-			ourEndPoint.enqueue(&ConnectionClosed{theirEndPoint.connId(k)})
-		}
-		// report the endpoint as gone if we have any outgoing connections
-		if vst._remoteOutgoing > 0 {
-			code := &EventConnectionLost{theirAddress}
-			ourEndPoint.enqueue(&ErrorEvent{code, errors.New("The remote endpoint was closed.")})
-		}
-	}
-
-	closeEndPoint := func() {
-		theirState := &theirEndPoint.remoteState
-		theirState.Lock()
-		defer theirState.Unlock()
-
-		switch st := theirState.value.(type) {
-		case *RemoteEndPointValid:
-			vst := &st._1
-			closeRemoteEndPoint(vst)
-			theirState.value = RemoteEndPointClosed{}
-		case *RemoteEndPointClosing:
-			vst := &st._2
-			closeRemoteEndPoint(vst)
-			theirState.value = RemoteEndPointClosed{}
-		}
-	}
-
 	// Dispatch
 	//
 	// If a recv throws an exception this will be caught top-level and
@@ -352,7 +323,7 @@ func (params *TCPParameters) handleIncomingMessages(ourEndPoint *LocalEndPoint, 
 				}
 			case CloseEndPoint:
 				ourEndPoint.removeRemoteEndPoint(theirEndPoint)
-				closeEndPoint()
+				ourEndPoint.onCloseEndPoint(theirEndPoint)
 				//exit for loop
 				return nil
 			default:

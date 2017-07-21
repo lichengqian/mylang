@@ -707,4 +707,36 @@
       RemoteEndPointClosed
       (ourEndPoint.relyViolation "onCloseSocket (closed)"))
 
-    (return false)))
+    (return false))
+
+    
+  (defn onCloseEndPoint
+    [^*RemoteEndPoint theirEndPoint]
+    (let closeRemoteEndPoint
+         (fn [^*ValidRemoteEndPointState vst]
+            ;; close incoming connections
+            (doseq [k vst._remoteIncoming]
+              (-> k
+                theirEndPoint.connId
+                &ConnectionClosed.
+                ourEndPoint.enqueue))
+            ;; report the endpoint as gone if we have any outgoing connections
+            (when (> vst._remoteOutgoing 0)
+              (let code (&EventConnectionLost. theirEndPoint.remoteAddress))
+              (->> "The remote endpoint was closed."
+                errors.New
+                (&ErrorEvent. code)
+                ourEndPoint.enqueue))))
+
+    (let theirState &theirEndPoint.remoteState)
+    (matchMVar! theirState
+      [RemoteEndPointValid *vst]
+      (do
+        (closeRemoteEndPoint vst)
+        (set theirState.value (RemoteEndPointClosed.)))
+
+      [RemoteEndPointClosing _ *vst]
+      (do
+        (closeRemoteEndPoint vst)   
+        (set theirState.value (RemoteEndPointClosed.))))))
+      
