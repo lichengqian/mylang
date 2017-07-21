@@ -78,6 +78,12 @@
 
 ;;; native set support
 
+(defmethod go-call 'hash-set
+    [v]
+    (cl-format nil "make(map[~A]struct{})" 
+        (emit (typeof v)))) 
+
+
 (defmethod dot-call '.add
   [_ m k]
   (cl-format nil "~A[~A] = struct{}{}\n"

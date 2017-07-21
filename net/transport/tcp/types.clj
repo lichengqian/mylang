@@ -216,8 +216,16 @@
         (println "flushing...")
         (let err (.flush vst.bufWriter))
         (when (not= err nil)
-            (println "warn flush failed " err))))
+            (println "warn flush failed " err)))
                 
+    ;; The ID of the last connection _we_ created (or 0 for none)
+    (defn lastSentId
+      ^LightweightConnectionId
+      []
+      (if (= vst._remoteNextConnOutId firstNonReservedLightweightConnectionId)
+          (return 0)
+          (return (- vst._remoteNextConnOutId 1)))))
+
 (impl ^*RemoteEndPointValid st
     (defn sendRoutine
         "batch send"
@@ -627,4 +635,76 @@
     (-> (theirEndPoint.connId lcid)
         (&ConnectionClosed.)
         ourEndPoint.enqueue)
-    (return nil)))
+    (return nil))
+
+
+  ;; Close the socket (if we don't have any outgoing connections)
+  (defn onCloseSocket
+    ^Bool
+    [^*RemoteEndPoint theirEndPoint, ^Conn sock, ^LightweightConnectionId lastReceivedId]
+    (let theirState &theirEndPoint.remoteState)
+    (matchMVar! theirState
+      [RemoteEndPointInvalid]
+      (ourEndPoint.relyViolation "onCloseSocket (invalid)")
+
+      [RemoteEndPointInit]
+      (ourEndPoint.relyViolation "onCloseSocket (init)")
+
+      [RemoteEndPointValid *vst]
+      (do
+        (doseq [k vst._remoteIncoming]
+          (-> k
+            theirEndPoint.connId
+            &ConnectionClosed.
+            ourEndPoint.enqueue))
+        (if (or (> (uint32 vst._remoteOutgoing) 0)
+                (not= (uint32 lastReceivedId) (uint32 (vst.lastSentId))))
+          (do
+            (println "we still have connections, can not close socket" vst._remoteOutgoing)
+            (set vst._remoteIncoming (^LightweightConnectionId hash-set))
+            (return false))
+          (do
+            (ourEndPoint.removeRemoteEndPoint theirEndPoint)
+            (set theirState.value (RemoteEndPointClosed.))
+            (vst.sendOn (fn [^OutputStream conn]
+                            (sendCloseSocket (uint32 vst._remoteLastIncoming) conn)))
+            (return true))))
+
+      [RemoteEndPointClosing resolved *vst]
+      ;; Like above, we need to check if there is a ConnectionCreated
+      ;; message that we sent but that the remote endpoint has not yet
+      ;; received. However, since we are in 'closing' state, the only
+      ;; way this may happen is when we sent a ConnectionCreated,
+      ;; ConnectionClosed, and CloseSocket message, none of which have
+      ;; yet been received. It's sufficient to check that the peer has
+      ;; not seen the ConnectionCreated message. In case they have seen
+      ;; it (so that lastReceivedId == lastSendId vst) then they must
+      ;; have seen the other messages or else they would not have sent
+      ;; CloseSocket.
+      ;; We leave the endpoint in closing state in that case.
+      (do
+        (when (not= lastReceivedId (vst.lastSentId))
+            (return false))
+        (when (> vst._remoteOutgoing 0)
+            (let code (&EventConnectionLost. theirEndPoint.remoteAddress)
+                msg "socket closed prematurely by peer")
+            (->> msg
+                errors.New
+                (&ErrorEvent. code)
+                ourEndPoint.enqueue))
+        (ourEndPoint.removeRemoteEndPoint theirEndPoint)
+        (set theirState.value (RemoteEndPointClosed.))
+        ;; Nothing to do, but we want to indicate that the socket
+        ;; really did close.
+        (notify resolved)
+        (return true))
+
+      [RemoteEndPointFailed e]
+      (do
+        (println "onCloseSocket:" e) 
+        (return false))
+
+      RemoteEndPointClosed
+      (ourEndPoint.relyViolation "onCloseSocket (closed)"))
+
+    (return false)))

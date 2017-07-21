@@ -3,7 +3,6 @@ package tcp
 import (
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"sync"
 )
@@ -256,15 +255,6 @@ func (params *TCPParameters) handleIncomingMessages(ourEndPoint *LocalEndPoint, 
 		return
 	}
 
-	// The ID of the last connection _we_ created (or 0 for none)
-	lastSentId := func(vst *ValidRemoteEndPointState) LightweightConnectionId {
-		if vst._remoteNextConnOutId == firstNonReservedLightweightConnectionId {
-			return 0
-		} else {
-			return vst._remoteNextConnOutId - 1
-		}
-	}
-
 	// Read a message and output it on the endPoint's channel. By rights we
 	// should verify that the connection ID is valid, but this is unnecessary
 	// overhead
@@ -276,81 +266,6 @@ func (params *TCPParameters) handleIncomingMessages(ourEndPoint *LocalEndPoint, 
 		event := &Received{theirEndPoint.connId(lcid), msg}
 		ourEndPoint.enqueue(event)
 		return nil
-	}
-
-	// Close the socket (if we don't have any outgoing connections)
-	closeSocket := func(sock net.Conn, lastReceivedId LightweightConnectionId) (bool, error) {
-		action := func() func() {
-			theirState := &theirEndPoint.remoteState
-			theirState.Lock()
-			defer theirState.Unlock()
-
-			fmt.Println("closing socket:", theirState.value.String())
-			switch st := theirState.value.(type) {
-			case *RemoteEndPointInvalid:
-				ourEndPoint.relyViolation("handleIncomingMessages:closeSocket (invalid)")
-			case *RemoteEndPointInit:
-				ourEndPoint.relyViolation("handleIncomingMessages:closeSocket (init)")
-			case *RemoteEndPointValid:
-				vst := &st._1
-				fmt.Println(vst)
-				for k := range vst._remoteIncoming {
-					ourEndPoint.enqueue(&ConnectionClosed{theirEndPoint.connId(k)})
-				}
-				if uint32(vst._remoteOutgoing) > 0 || uint32(lastReceivedId) != uint32(lastSentId(vst)) {
-					fmt.Println("we still have connections, can not close socket", vst._remoteOutgoing)
-					vst._remoteIncoming = make(map[LightweightConnectionId]struct{})
-					return nil
-				} else {
-					ourEndPoint.removeRemoteEndPoint(theirEndPoint)
-					theirState.value = RemoteEndPointClosed{}
-					return func() {
-						vst.sendOn(func(conn io.Writer) {
-							sendCloseSocket(uint32(vst._remoteLastIncoming), conn)
-						})
-					}
-				}
-			case *RemoteEndPointClosing:
-				// Like above, we need to check if there is a ConnectionCreated
-				// message that we sent but that the remote endpoint has not yet
-				// received. However, since we are in 'closing' state, the only
-				// way this may happen is when we sent a ConnectionCreated,
-				// ConnectionClosed, and CloseSocket message, none of which have
-				// yet been received. It's sufficient to check that the peer has
-				// not seen the ConnectionCreated message. In case they have seen
-				// it (so that lastReceivedId == lastSendId vst) then they must
-				// have seen the other messages or else they would not have sent
-				// CloseSocket.
-				// We leave the endpoint in closing state in that case.
-				vst := &st._2
-				if lastReceivedId != lastSentId(vst) {
-					return nil
-				}
-				if vst._remoteOutgoing > 0 {
-					code := &EventConnectionLost{theirAddress}
-					msg := "socket closed prematurely by peer"
-					ourEndPoint.enqueue(&ErrorEvent{code, errors.New(msg)})
-				}
-				ourEndPoint.removeRemoteEndPoint(theirEndPoint)
-				theirState.value = RemoteEndPointClosed{}
-				// Nothing to do, but we want to indicate that the socket
-				// really did close.
-				notify(st._1)
-				return func() {}
-			case *RemoteEndPointFailed:
-				fmt.Println("closeSocket:", st._1)
-				return nil
-			case RemoteEndPointClosed:
-				ourEndPoint.relyViolation("handleIncomingMessages:closeSocket (closed)")
-			}
-			return nil
-		}()
-
-		if action != nil {
-			action()
-			return true, nil
-		}
-		return false, nil
 	}
 
 	closeRemoteEndPoint := func(vst *ValidRemoteEndPointState) {
@@ -430,11 +345,8 @@ func (params *TCPParameters) handleIncomingMessages(ourEndPoint *LocalEndPoint, 
 				if err != nil {
 					return err
 				}
-				didClose, err := closeSocket(sock, LightweightConnectionId(i))
-				fmt.Println("closing socket...", i, didClose, err)
-				if err != nil {
-					return err
-				}
+				didClose := ourEndPoint.onCloseSocket(theirEndPoint, sock, LightweightConnectionId(i))
+				fmt.Println("closing socket...", i, didClose)
 				if didClose {
 					return nil
 				}

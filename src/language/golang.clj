@@ -310,10 +310,10 @@
 (defmethod emit-special [::golang 'doseq]
   [type [ doseq [arg values] & exprs]]
   (str "for " (emit arg)
-       " in " (binding [*delimited-sequence* false] (emit values))
-       "; do\n"
+       " := range " (emit values)
+       "{\n"
        (emit-do exprs)
-       "done"))
+       "}"))
 
 (defmethod emit-special [::golang 'group]
   [type [ group & exprs]]
