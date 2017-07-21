@@ -594,4 +594,37 @@
     (-> (theirEndPoint.connId lcid)
         (&ConnectionOpened. theirEndPoint.remoteAddress)
         (ourEndPoint.enqueue))
+    (return nil))
+
+
+  ;; Close a connection
+  ;; It is important that we verify that the connection is in fact open,
+  ;; because otherwise we should not decrement the reference count
+  (defn onCloseConnection
+    [^*RemoteEndPoint theirEndPoint, ^LightweightConnectionId lcid]
+    (let theirState &theirEndPoint.remoteState)
+    (matchMVar! theirState
+      [RemoteEndPointInvalid]
+      (ourEndPoint.relyViolation "onCloseConnection (invalid)")
+
+      [RemoteEndPointInit]
+      (ourEndPoint.relyViolation "onCloseConnection (init)")
+
+      [RemoteEndPointValid *vst]
+      (if (contains? vst._remoteIncoming lcid)
+        (.remove vst._remoteIncoming lcid)
+        (throw "onCloseConnection (Invalid CloseConnection)"))
+
+      [RemoteEndPointClosing]
+      (throw "onCloseConnection (Invalid CloseConnection request)")
+
+      [RemoteEndPointFailed e]
+      (throw e)
+
+      RemoteEndPointClosed
+      (ourEndPoint.relyViolation "onCloseConnection (closed)"))
+
+    (-> (theirEndPoint.connId lcid)
+        (&ConnectionClosed.)
+        ourEndPoint.enqueue)
     (return nil)))

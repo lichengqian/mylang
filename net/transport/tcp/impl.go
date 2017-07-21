@@ -278,38 +278,6 @@ func (params *TCPParameters) handleIncomingMessages(ourEndPoint *LocalEndPoint, 
 		return nil
 	}
 
-	// Close a connection
-	// It is important that we verify that the connection is in fact open,
-	// because otherwise we should not decrement the reference count
-	closeConnection := func(lcid LightweightConnectionId) error {
-		theirState := &theirEndPoint.remoteState
-		theirState.Lock()
-		defer theirState.Unlock()
-
-		switch st := theirState.value.(type) {
-		case *RemoteEndPointInvalid:
-			ourEndPoint.relyViolation("handleIncomingMessages:closeConnection (invalid)")
-		case *RemoteEndPointInit:
-			ourEndPoint.relyViolation("handleIncomingMessages:closeConnection (init)")
-		case *RemoteEndPointValid:
-			vst := &st._1
-			if _, ok := vst._remoteIncoming[lcid]; ok {
-				delete(vst._remoteIncoming, lcid)
-			} else {
-				return errors.New("Invalid CloseConnection")
-			}
-		case *RemoteEndPointClosing:
-			return errors.New("Invalid CloseConnection request")
-		case *RemoteEndPointFailed:
-			return st._1
-		case RemoteEndPointClosed:
-			ourEndPoint.relyViolation("closeConnection (closed)")
-		}
-
-		ourEndPoint.enqueue(&ConnectionClosed{theirEndPoint.connId(lcid)})
-		return nil
-	}
-
 	// Close the socket (if we don't have any outgoing connections)
 	closeSocket := func(sock net.Conn, lastReceivedId LightweightConnectionId) (bool, error) {
 		action := func() func() {
@@ -452,7 +420,7 @@ func (params *TCPParameters) handleIncomingMessages(ourEndPoint *LocalEndPoint, 
 				if err != nil {
 					return err
 				}
-				err = closeConnection(LightweightConnectionId(cid))
+				err = ourEndPoint.onCloseConnection(theirEndPoint, LightweightConnectionId(cid))
 				if err != nil {
 					return err
 				}
