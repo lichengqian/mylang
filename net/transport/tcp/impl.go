@@ -277,66 +277,68 @@ func (params *TCPParameters) handleIncomingMessages(ourEndPoint *LocalEndPoint, 
 	// user exception which is then caught and handled the same way as an
 	// exception thrown by 'recv'.
 
-	err = func() error {
-		for {
-			lcid, err := ReadUint32(sock)
-			if err != nil {
-				fmt.Println("read lcid failed", err)
-				return err
-			}
-
-			if uint32(lcid) >= uint32(firstNonReservedLightweightConnectionId) {
-				readMessage(sock, LightweightConnectionId(lcid))
-				continue
-			}
-
-			switch decodeControlHeader(uint8(uint32(lcid))).(type) {
-			case CreateNewConnection:
-				cid, err := ReadUint32(sock)
-				if err != nil {
-					return err
-				}
-				err = ourEndPoint.onCreateNewConnection(theirEndPoint, LightweightConnectionId(cid))
-				if err != nil {
-					return err
-				}
-				continue
-			case CloseConnection:
-				cid, err := ReadUint32(sock)
-				if err != nil {
-					return err
-				}
-				err = ourEndPoint.onCloseConnection(theirEndPoint, LightweightConnectionId(cid))
-				if err != nil {
-					return err
-				}
-				continue
-			case CloseSocket:
-				i, err := ReadUint32(sock)
-				if err != nil {
-					return err
-				}
-				didClose := ourEndPoint.onCloseSocket(theirEndPoint, sock, LightweightConnectionId(i))
-				fmt.Println("closing socket...", i, didClose)
-				if didClose {
-					return nil
-				}
-			case CloseEndPoint:
-				ourEndPoint.removeRemoteEndPoint(theirEndPoint)
-				ourEndPoint.onCloseEndPoint(theirEndPoint)
-				//exit for loop
-				return nil
-			default:
-				err := errors.New("Invalid control request")
-				return err
+	defer func() {
+		if r := recover(); r != nil {
+			if err, ok := r.(error); ok {
+				ourEndPoint.prematureExit(theirEndPoint, err)
 			}
 		}
+		fmt.Println("handleIncomingMessages exit!---", theirAddress)
 	}()
 
-	if err != nil {
-		ourEndPoint.prematureExit(theirEndPoint, err)
+	for {
+		lcid, err := ReadUint32(sock)
+		if err != nil {
+			fmt.Println("read lcid failed", err)
+			panic(err)
+		}
+
+		if uint32(lcid) >= uint32(firstNonReservedLightweightConnectionId) {
+			readMessage(sock, LightweightConnectionId(lcid))
+			continue
+		}
+
+		switch decodeControlHeader(uint8(uint32(lcid))).(type) {
+		case CreateNewConnection:
+			cid, err := ReadUint32(sock)
+			if err != nil {
+				panic(err)
+			}
+			err = ourEndPoint.onCreateNewConnection(theirEndPoint, LightweightConnectionId(cid))
+			if err != nil {
+				panic(err)
+			}
+			continue
+		case CloseConnection:
+			cid, err := ReadUint32(sock)
+			if err != nil {
+				panic(err)
+			}
+			err = ourEndPoint.onCloseConnection(theirEndPoint, LightweightConnectionId(cid))
+			if err != nil {
+				panic(err)
+			}
+			continue
+		case CloseSocket:
+			i, err := ReadUint32(sock)
+			if err != nil {
+				panic(err)
+			}
+			didClose := ourEndPoint.onCloseSocket(theirEndPoint, sock, LightweightConnectionId(i))
+			fmt.Println("closing socket...", i, didClose)
+			if didClose {
+				return
+			}
+		case CloseEndPoint:
+			ourEndPoint.removeRemoteEndPoint(theirEndPoint)
+			ourEndPoint.onCloseEndPoint(theirEndPoint)
+			//exit for loop
+			return
+		default:
+			err := errors.New("Invalid control request")
+			panic(err)
+		}
 	}
-	fmt.Println("handleIncomingMessages exit!---", theirAddress)
 }
 
 // | Create a connection to a remote endpoint
