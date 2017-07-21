@@ -518,7 +518,13 @@
       [RemoteEndPointFailed e]
       (return 0 e))
 
-    (return 0 (errors.New "newConnection"))))
+    (return 0 (errors.New "newConnection")))
+
+  ;; Construct a connection ID
+  (defn connId
+    ^ConnectionId
+    [^LightweightConnectionId lcid]
+    (return (createConnectionId theirEndPoint.remoteId lcid))))
 
 
 (impl ^*LocalEndPoint ourEndPoint
@@ -548,4 +554,44 @@
             (let code (&EventConnectionLost. theirAddress))
             (>! ourEndPoint.localQueue (&ErrorEvent. code err))))))
 
-    (ourEndPoint.relyViolation "handleIncomingMessages:prematureExi")))
+    (ourEndPoint.relyViolation "handleIncomingMessages:prematureExi"))
+
+    
+  ;; Create a new connection
+  (defn onCreateNewConnection
+    [^*RemoteEndPoint theirEndPoint, ^LightweightConnectionId lcid]
+    (let theirState &theirEndPoint.remoteState)
+    (matchMVar! theirState
+      [RemoteEndPointValid *vst]
+      (do
+        (set vst._remoteLastIncoming lcid)
+        (.add vst._remoteIncoming lcid))
+      [RemoteEndPointClosing resolver *vst]
+      ;; If the endpoint is in closing state that means we send a
+      ;; CloseSocket request to the remote endpoint. If the remote
+      ;; endpoint replies that it created a new connection, it either
+      ;; ignored our request or it sent the request before it got ours.
+      ;; Either way, at this point we simply restore the endpoint to
+      ;; RemoteEndPointValid
+      (do
+        (notify resolver)
+        (set vst._remoteLastIncoming lcid)
+        (.add vst._remoteIncoming lcid)
+        (set theirState.value (&RemoteEndPointValid. *vst)))
+
+      [RemoteEndPointFailed e]
+      (throw e)
+
+      [RemoteEndPointInvalid]
+      (ourEndPoint.relyViolation "onCreateNewConnection (invalid)")
+
+      [RemoteEndPointInit]
+      (ourEndPoint.relyViolation "onCreateNewConnection (init)")
+
+      RemoteEndPointClosed
+      (ourEndPoint.relyViolation "onCreateNewConnection (closed)"))
+
+    (-> (theirEndPoint.connId lcid)
+        (&ConnectionOpened. theirEndPoint.remoteAddress)
+        (ourEndPoint.enqueue))
+    (return nil)))

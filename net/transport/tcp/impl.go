@@ -256,11 +256,6 @@ func (params *TCPParameters) handleIncomingMessages(ourEndPoint *LocalEndPoint, 
 		return
 	}
 
-	// Construct a connection ID
-	connId := func(lcid LightweightConnectionId) ConnectionId {
-		return createConnectionId(theirEndPoint.remoteId, lcid)
-	}
-
 	// The ID of the last connection _we_ created (or 0 for none)
 	lastSentId := func(vst *ValidRemoteEndPointState) LightweightConnectionId {
 		if vst._remoteNextConnOutId == firstNonReservedLightweightConnectionId {
@@ -278,44 +273,8 @@ func (params *TCPParameters) handleIncomingMessages(ourEndPoint *LocalEndPoint, 
 		if err != nil {
 			return err
 		}
-		event := &Received{connId(lcid), msg}
+		event := &Received{theirEndPoint.connId(lcid), msg}
 		ourEndPoint.enqueue(event)
-		return nil
-	}
-
-	// Create a new connection
-	createdNewConnection := func(lcid LightweightConnectionId) error {
-		theirState := &theirEndPoint.remoteState
-		theirState.Lock()
-		defer theirState.Unlock()
-
-		switch st := theirState.value.(type) {
-		case *RemoteEndPointInvalid:
-			ourEndPoint.relyViolation("handleIncomingMessages:createNewConnection (invalid)")
-		case *RemoteEndPointInit:
-			ourEndPoint.relyViolation("handleIncomingMessages:createNewConnection (init)")
-		case *RemoteEndPointValid:
-			st._1._remoteLastIncoming = lcid
-			st._1._remoteIncoming[lcid] = struct{}{}
-		case *RemoteEndPointClosing:
-			// If the endpoint is in closing state that means we send a
-			// CloseSocket request to the remote endpoint. If the remote
-			// endpoint replies that it created a new connection, it either
-			// ignored our request or it sent the request before it got ours.
-			// Either way, at this point we simply restore the endpoint to
-			// RemoteEndPointValid
-			notify(st._1)
-			vst := &st._2
-			vst._remoteLastIncoming = lcid
-			vst._remoteIncoming[lcid] = struct{}{}
-			theirState.value = &RemoteEndPointValid{*vst}
-		case *RemoteEndPointFailed:
-			return st._1
-		case RemoteEndPointClosed:
-			ourEndPoint.relyViolation("createNewConnection (closed)")
-		}
-
-		ourEndPoint.enqueue(&ConnectionOpened{connId(lcid), theirAddress})
 		return nil
 	}
 
@@ -347,7 +306,7 @@ func (params *TCPParameters) handleIncomingMessages(ourEndPoint *LocalEndPoint, 
 			ourEndPoint.relyViolation("closeConnection (closed)")
 		}
 
-		ourEndPoint.enqueue(&ConnectionClosed{connId(lcid)})
+		ourEndPoint.enqueue(&ConnectionClosed{theirEndPoint.connId(lcid)})
 		return nil
 	}
 
@@ -368,7 +327,7 @@ func (params *TCPParameters) handleIncomingMessages(ourEndPoint *LocalEndPoint, 
 				vst := &st._1
 				fmt.Println(vst)
 				for k := range vst._remoteIncoming {
-					ourEndPoint.enqueue(&ConnectionClosed{connId(k)})
+					ourEndPoint.enqueue(&ConnectionClosed{theirEndPoint.connId(k)})
 				}
 				if uint32(vst._remoteOutgoing) > 0 || uint32(lastReceivedId) != uint32(lastSentId(vst)) {
 					fmt.Println("we still have connections, can not close socket", vst._remoteOutgoing)
@@ -429,7 +388,7 @@ func (params *TCPParameters) handleIncomingMessages(ourEndPoint *LocalEndPoint, 
 	closeRemoteEndPoint := func(vst *ValidRemoteEndPointState) {
 		// close incoming connections
 		for k := range vst._remoteIncoming {
-			ourEndPoint.enqueue(&ConnectionClosed{connId(k)})
+			ourEndPoint.enqueue(&ConnectionClosed{theirEndPoint.connId(k)})
 		}
 		// report the endpoint as gone if we have any outgoing connections
 		if vst._remoteOutgoing > 0 {
@@ -483,7 +442,7 @@ func (params *TCPParameters) handleIncomingMessages(ourEndPoint *LocalEndPoint, 
 				if err != nil {
 					return err
 				}
-				err = createdNewConnection(LightweightConnectionId(cid))
+				err = ourEndPoint.onCreateNewConnection(theirEndPoint, LightweightConnectionId(cid))
 				if err != nil {
 					return err
 				}
@@ -671,10 +630,6 @@ func (ourEndPoint *LocalEndPoint) findRemoteEndPoint(theirAddress EndPointAddres
 	//this can not happen!
 	panic("can not happen")
 	return nil, false, nil
-}
-
-func createConnectionId(hcid HeavyweightConnectionId, lcid LightweightConnectionId) ConnectionId {
-	return ConnectionId(uint64(uint32(hcid))<<32 | uint64(uint32(lcid)))
 }
 
 //------------------------------------------------------------------------------

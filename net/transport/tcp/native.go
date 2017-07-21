@@ -245,6 +245,9 @@ func socketToEndPoint_(ourAddress EndPointAddress, theirAddress EndPointAddress)
 //-----------------------------------------------------------------------------
 // network utils                                                             --
 //-----------------------------------------------------------------------------
+func createConnectionId(hcid HeavyweightConnectionId, lcid LightweightConnectionId) ConnectionId {
+	return ConnectionId(uint64(uint32(hcid))<<32 | uint64(uint32(lcid)))
+}
 
 func tryShutdownSocketBoth(conn net.Conn) {
 	conn.Close()

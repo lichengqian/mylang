@@ -75,6 +75,15 @@
   (cl-format nil "delete(~A, ~A)"
     (emit m) (emit k)))
 
+
+;;; native set support
+
+(defmethod dot-call '.add
+  [_ m k]
+  (cl-format nil "~A[~A] = struct{}{}\n"
+    (emit m) (emit k)))
+
+
 ;;; native OutputStream support
 
 (defmethod dot-call '.flush
