@@ -24,11 +24,13 @@
    [clojure.spec.alpha :as s]
    [cats.builtin]
    [cats.core :as m]
+   [clojure.tools.analyzer.jvm :as ast]
 
    [clj-compiler])
   (:use  [mylang]
          [language.common]
          [language.golang]
+         [language.golang.emit]
          [clj-compiler]))
 
 ;; Do not try to load source code from 'resources' directory

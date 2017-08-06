@@ -4,6 +4,8 @@
   :license {:name "TODO: Choose a license"
             :url "http://choosealicense.com/"}
   :dependencies [[org.clojure/clojure "1.9.0-alpha16"]
+                 [org.clojure/tools.analyzer "0.6.9"]
+                 [org.clojure/tools.analyzer.jvm "0.7.0"]
                  [com.stuartsierra/component "0.3.2"]
                  [org.clojure/tools.logging "0.3.1"]
                  [funcool/cats "2.1.0"]]
