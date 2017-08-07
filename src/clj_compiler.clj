@@ -3,7 +3,8 @@
             [clojure.string :as str]
             [clojure.pprint :refer [pprint]]
             [clojure.java.io :as io]
-            [clojure.java.shell :refer [sh]])
+            [clojure.java.shell :refer [sh]]
+            [clojure.main :refer [repl]])
     (:use [mylang]
           [language.common]
           [language.golang]))
@@ -80,3 +81,24 @@
             (when (str/ends-with? fpath ".clj")
                 (println "compiling " (.getPath f))
                 (go-compile (.getPath f))))))
+
+
+;;;;  golang repl for test!
+(defn go-eval
+  [form]
+  (binding [*compiler-context* {:import #{}}]
+    (set-ns "dev")
+    (-> (list form)         ;; surrand with list
+      transform
+      emit-script
+      (output-with-context *compiler-context*))))
+
+
+(defn go-repl
+  []
+  (with-script-language :language.golang/golang
+    (repl :eval go-eval
+          :print println  
+          :prompt (fn [] (printf "go=> ")))))
+  
+
