@@ -283,34 +283,4 @@
     (add-enum name fields)
     (emit-enum name doc? fields)))
 
-;;; Script combiner implementations
-
-(defmethod do-script ::common-impl
-  [& scripts]
-  (str
-   (->>
-    scripts
-    (map #(when % (string/trim %)))
-    (filter (complement string/blank?))
-    (string/join \newline))
-   \newline))
-
-(defn chain-with
-  [chain-op scripts]
-  (let [scripts (filter (complement string/blank?) scripts)
-        sep (if *src-line-comments* " \\\n" " ")]
-    (if (= 1 (count scripts))
-      (first scripts)
-      (->>
-       scripts
-       (map string/trim)
-       (string/join (str " " chain-op sep))
-       string/split-lines
-       (string/join "\n") ; do not indent blocks to avoid heredoc issues
-       string/trim))))
-
-(defmethod chain-commands ::common-impl
-  [& scripts]
-  (chain-with "&&" scripts))
-
 (def ^:dynamic *error-code* "*error-code*")

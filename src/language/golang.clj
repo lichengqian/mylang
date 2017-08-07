@@ -223,9 +223,6 @@
 ;; TODO should this even exist?
 ;; It causes seemingly unnessessary conflicts with ::common-impl implementations
 ;; we don't buy much by having it.
-;;
-;;(defmethod emit [::golang java.lang.Object] [expr]
-;;  (str expr))
 
 ;;; TODO move to pallet.common.string
 (defn comma-list
@@ -319,17 +316,6 @@
   [type [ group & exprs]]
   (str "{\n" (string/join (emit-do exprs)) "}"))
 
-(defmethod emit-special [::golang 'pipe]
-  [type [ pipe & exprs]]
-  (chain-with "|" (map emit exprs)))
-
-(defmethod emit-special [::golang 'chain-or]
-  [type [chain-or & exprs]]
-  (chain-with "||" (map emit exprs)))
-
-(defmethod emit-special [::golang 'chain-and]
-  [type [chain-and & exprs]]
-  (chain-with "&&" (map emit exprs)))
 
 (defn emit-field [name type]
   (str (emit name) " " (emit type) "\n"))
