@@ -14,16 +14,15 @@
         (#(str "(" % "\n)"))    ; 最外层包一个括号，可以解析为一个list，回车是为了防止文件最后一行有注释!
         read-string))
 
-(defn output-with-context [content]
-    ; (println *compiler-context*)
-    (let [_ns (:ns *compiler-context*)
-          _imports (into #{} (:import *compiler-context*))
-        ;   _ (println _imports)
-          _out (str (emit-ns _ns)
-                    (emit-import _imports)
-                    "\n"
-                    content)]
-        _out))
+(defn- output-with-context [content ctx]
+    ; (println ctx)
+    (let [_ns (:ns ctx)
+          _imports (into #{} (:import ctx))]
+        ; (println _imports)
+        (str (emit-ns _ns)
+             (emit-import _imports)
+             "\n"
+             content)))
 
 (defn- _compile [path]
     (binding [*compiler-context* {:import #{}}]
@@ -31,7 +30,7 @@
         (-> (read-forms path)
             transform
             emit-script
-            output-with-context)))
+            (output-with-context *compiler-context*))))
 
 (defn- _transform [path]
     (->> (read-forms path)

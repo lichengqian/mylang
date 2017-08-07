@@ -359,7 +359,6 @@
 
 (defn add-import [s]
   (->> (update-in *compiler-context* [:import] conj s)
-    ; (assoc *compiler-context* :import)
     (set! *compiler-context*))
   "")
 
