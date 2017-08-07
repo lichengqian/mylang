@@ -45,7 +45,7 @@
 
 (set-init (fn [_] (dev-system)))
 
-(set-language :language.golang/golang)
+(alter-var-root #'*script-language* (constantly :language.golang/golang))
 
 (def ^:dynamic *src-dir* "net/transport/tcp")
 

@@ -13,14 +13,10 @@
    [clojure.tools.logging :refer [tracef]]))
   ;  [clojure.walk :as walk]
    
-
+;;; golang or cpp?
 (declare ^{:dynamic true} *script-language*)
+;;; {:ns :import :prefix}
 (declare ^{:dynamic true} *compiler-context*)
-
-(defn set-language
-    "设置目标语言"
-    [target]
-    (alter-var-root #'*script-language* (constantly target)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; CODE GENERATION PUBLIC INTERFACE

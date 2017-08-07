@@ -61,8 +61,7 @@
     ([path]
      (cond
         (string? path) (go-compile path (go-target path))
-        :else (do
-                    (set-language :language.golang/golang)
+        :else (with-script-language :language.golang/golang
                     (-> path
                         transform
                         (doto pprint)
@@ -70,9 +69,9 @@
                         println))))
             
     ([path target]
-     (set-language :language.golang/golang)
-     (spit target (_compile path))
-     (sh "gofmt" "-w" target)))
+     (with-script-language :language.golang/golang
+        (spit target (_compile path))
+        (sh "gofmt" "-w" target))))
 
 (defn go-make
     "批量编译一个目录下的clj文件"
