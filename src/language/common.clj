@@ -14,38 +14,13 @@
 (load "common/util")
 (load "common/transform")
 
-;; Main dispatch functions.
+;; 代码生成主流程：
+;; (-> file
+;;   read-form    读取源文件，生成form格式     :raw-form
+;;   transform    form格式转换，生成form格式   :form
+;;   compile      编译，生成ast for target    :ast
+;;   emit)        生成代码，string格式，处理package/import等,参考JavaPoet设计 :code
 ;;
-;; `emit` is the entry point for parsing.
-;; It dispatches on the type of its argument.
-;;
-;; For example (emit (ls "asdf")) dispatches on `clojure.lang.IPersistentList`.
-;;
-;; The above example, along with some others, call `emit-special`
-;; `emit-function` or `emit-function-call`.
-;;
-;; For example:
-;;
-;;  (emit (ls "asdf"))
-;; calls
-;;  (emit-special 'ls (ls "asdf"))
-;;
-;;  (emit (defn foo [a]
-;;          "Docstring"
-;;          (println "asdf")))
-;; calls
-;;  (emit-function foo "Docstring" [a] (println "asdf"))
-;;
-;;  (emit (test-fn 1 2 "a"))
-;; calls
-;;  (emit-function-call test-fn [1 2 "a"])
-;;
-;; Generally, the implementations of `emit` in pallet.stevedore.common, which
-;; dispatch on compound types, should be sufficient for most implementations.
-;;
-;; The other emit-* functions are convenience functions
-;; which avoid the need to reimplement all of `emit` for each Stevedore
-;; implementation.
 
 (defmulti transform
   "source to source transformation"
