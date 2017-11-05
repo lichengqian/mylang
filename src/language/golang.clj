@@ -9,6 +9,7 @@
             [cats.core :as m])
   (:use
    [language.common]
+   [language.reader]
    [mylang]))
     ; :only [emit emit-do special-forms splice-seq with-source-line-comments]
     

@@ -6,14 +6,11 @@
             [clojure.java.shell :refer [sh]]
             [clojure.main :refer [repl]])
     (:use [mylang]
+          [language.reader]
           [language.common]
           [language.golang]))
 
-(defn read-forms [path]
-    (-> path
-        slurp
-        (#(str "(" % "\n)"))    ; 最外层包一个括号，可以解析为一个list，回车是为了防止文件最后一行有注释!
-        read-string))
+
 
 (defn- output-with-context [content ctx]
     ; (println ctx)

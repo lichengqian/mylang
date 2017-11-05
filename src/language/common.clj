@@ -1,25 +1,23 @@
 (ns language.common
-  (:require
-   [clojure.java.io :refer [file]]
-   [clojure.string :as string]
-   [clojure.tools.logging :refer [tracef]]
-   [clojure.walk :as walk]
-   [clojure.zip :as zip]
-   [clojure.pprint :refer [pprint]]
-   [clojure.spec.alpha :as s]
-
-   [mylang
-    :refer :all]))
+  (:require [clojure.java.io :refer [file]]
+            [clojure.string :as string]
+            [clojure.tools.logging :refer [tracef]]
+            [clojure.walk :as walk]
+            [clojure.zip :as zip]
+            [clojure.pprint :refer [pprint]]
+            [clojure.spec.alpha :as s]
+            [language.reader :refer :all]
+            [mylang :refer :all]))
 
 (load "common/util")
 (load "common/transform")
 
-;; 代码生成主流程：
+;; 代码生成主流程：  http://nas.sr/magic/
 ;; (-> file
-;;   read-form    读取源文件，生成form格式     :raw-form
-;;   transform    form格式转换，生成form格式   :form
-;;   compile      编译，生成ast for target    :ast
-;;   emit)        生成代码，string格式，处理package/import等,参考JavaPoet设计 :code
+;;   read-form（+ custom form to form transform）    读取源文件，生成form格式     :form
+;;   analyze(+ custom ast to ast transform)     form -> ast               :ast
+;;   compile      ast -> target code block  :code
+;;   emit)        target code block -> string格式，处理package/import等,参考JavaPoet设计
 ;;
 
 (defmulti transform
