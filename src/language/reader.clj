@@ -16,12 +16,14 @@
 
 (defn prewalk*
   "prewalk until no more changes"
-  [f form]
-  (loop [form2 form]
-    (let [expanded (walk/prewalk f form2)]
-      (if (= form2 expanded)
-        expanded
-        (recur expanded)))))
+  ([f]
+   (fn [form] (prewalk* f form)))
+  ([f form]
+   (loop [form2 form]
+     (let [expanded (walk/prewalk f form2)]
+       (if (= form2 expanded)
+         expanded
+         (recur expanded))))))
 
 
 ;;; see http://ferret-lang.org/#outline-container-sec-3
@@ -32,7 +34,7 @@
                     (f x)
                     x)) tree))
 
-(defn remove-form [tree pred]
+(defn remove-form [pred tree]
   (if (every? true? (map #(pred %) tree))
     (list)
     (loop [loc (zip/seq-zip tree)]
@@ -44,7 +46,7 @@
             (zip/remove loc)
             loc)))))))
 
-(defn select-form [tree pred]
+(defn select-form [pred tree]
   (loop [loc (zip/seq-zip tree)
          nodes []]
     (if (zip/end? loc)

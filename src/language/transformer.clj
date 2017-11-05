@@ -10,7 +10,7 @@
                          (filter (fn [[_ name]]
                                    (not (core-macro-symbols name)))))
         form-macro-symbols (map second form-macros)
-        form2 (remove-form form (is-form? 'defmacro))
+        form2 (remove-form (is-form? 'defmacro) form)
         macro-symbols (concat core-macro-symbols form-macro-symbols)]
 
     ; (create-ns temp-ns)
