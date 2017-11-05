@@ -1,4 +1,6 @@
-(in-ns 'language.common)
+(ns language.transformer
+  (:require [language.reader :refer :all]))
+
 
 ;;; Source to Source transfermations
 (def core-macro-symbols #{'if-not 'when-not '-> '->>})

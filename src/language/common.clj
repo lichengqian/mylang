@@ -7,10 +7,10 @@
             [clojure.pprint :refer [pprint]]
             [clojure.spec.alpha :as s]
             [language.reader :refer :all]
+            [language.transformer :refer :all]
             [mylang :refer :all]))
 
 (load "common/util")
-(load "common/transform")
 
 ;; 代码生成主流程：  http://nas.sr/magic/
 ;; (-> file
