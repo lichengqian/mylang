@@ -4,6 +4,9 @@
   :license {:name "TODO: Choose a license"
             :url "http://choosealicense.com/"}
   :dependencies [[org.clojure/clojure "1.9.0-alpha16"]
+                 [org.clojure/core.match "0.3.0-alpha5"]
+                 [com.rpl/specter "1.0.3"]
+                 [org.arachne-framework/arachne-fileset "1.0.0-beta1"]
                  [org.clojure/tools.analyzer "0.6.9"]
                  [org.clojure/tools.analyzer.jvm "0.7.0"]
                  [com.stuartsierra/component "0.3.2"]
