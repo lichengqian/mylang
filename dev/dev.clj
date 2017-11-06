@@ -25,12 +25,17 @@
    [cats.builtin]
    [cats.core :as m]
    [clojure.tools.analyzer.jvm :as ast]
-
+   [clojure.tools.analyzer.ast :refer [children, nodes]]
+   [language.golang.target :as go]
    [clj-compiler])
   (:use  [mylang]
+         [language.reader]
          [language.common]
          [language.golang]
          [language.golang.emit]
+         [language.analyzer]
+         [language.target]
+         [language.golang.compiler]
          [clj-compiler]))
 
 ;; Do not try to load source code from 'resources' directory
@@ -73,3 +78,15 @@
            "native_test.go"
            "throttle_timer.go"))
 
+(defn to-code
+  [form]
+  (let [ast (analyze form)
+        code (-compile ast)]
+    (println "--------form")
+    (pprint form)
+    (println "--------ast")
+    (pprint ast)
+    (println "--------code")
+    (pprint code)
+    (println "--------emit")
+    (println code)))

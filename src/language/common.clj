@@ -14,7 +14,8 @@
 
 ;; 代码生成主流程：  http://nas.sr/magic/
 ;; (-> file
-;;   read-form（+ custom form to form transform）    读取源文件，生成form格式     :form
+;;   read-form    读取源文件，生成form格式     :form
+;;   transform
 ;;   analyze(+ custom ast to ast transform)     form -> ast               :ast
 ;;   compile      ast -> target code block  :code
 ;;   emit)        target code block -> string格式，处理package/import等,参考JavaPoet设计

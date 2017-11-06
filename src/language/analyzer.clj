@@ -24,6 +24,8 @@
 
 
 (defn analyze
-  [form]
-  (with-bindings {#'jvm/run-passes run-passes}
-    (jvm/analyze form)))
+  ([form] (analyze form (jvm/empty-env)))
+  ([form env] (analyze form env {}))
+  ([form env opts]
+   (with-bindings {#'jvm/run-passes run-passes}
+     (jvm/analyze form env opts))))
