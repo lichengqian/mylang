@@ -1,7 +1,7 @@
 (ns language.golang.compiler
   (:require [clojure.core.match :refer [match]]
-            [language.target :refer :all]
-            [language.golang.target :refer :all]))
+            [language.compiler :refer :all]
+            [language.golang.native :refer :all]))
 
 (defmulti -compile (fn [ast] (:op ast)))
 

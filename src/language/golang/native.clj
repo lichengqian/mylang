@@ -1,8 +1,8 @@
-(ns language.golang.target
+(ns language.golang.native
   (:refer-clojure :exclude [int struct type])
   (:require [clojure.pprint :refer [cl-format]]
             [clojure.tools.analyzer.ast :as ast]
-            [language.target :refer :all]))
+            [language.compiler :refer :all]))
 
 
 (primitive-types

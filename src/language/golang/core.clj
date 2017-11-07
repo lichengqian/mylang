@@ -2,8 +2,8 @@
   (:require [clojure.pprint :refer [pprint]]
             [clojure.set :as set]
             [language.reader :refer :all]
-            [language.target :refer :all]
-            [language.golang.target :refer :all]
+            [language.compiler :refer :all]
+            [language.golang.native :refer :all]
             [language.transformer :refer :all]
             [language.analyzer :refer :all]
             [language.golang.compiler :refer :all]))

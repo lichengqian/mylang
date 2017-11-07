@@ -26,7 +26,7 @@
    [cats.core :as m]
    [clojure.tools.analyzer.jvm :as ast]
    [clojure.tools.analyzer.ast :refer [children, nodes]]
-   [language.golang.target :as go]
+   [language.golang.native :as go]
    [clj-compiler])
   (:use  [mylang]
          [language.reader]
@@ -34,7 +34,7 @@
          [language.golang]
          [language.golang.emit]
          [language.analyzer]
-         [language.target]
+         [language.compiler]
          [language.golang.compiler]
          [language.golang.core]
          [clj-compiler]))
