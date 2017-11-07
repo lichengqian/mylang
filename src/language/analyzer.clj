@@ -14,18 +14,12 @@
     #'constant-lift})
 
 
-(def scheduled-default-passes
-  (schedule default-passes))
-
-
-(defn run-passes
-  [ast]
-  (scheduled-default-passes ast))
-
-
-(defn analyze
-  ([form] (analyze form (jvm/empty-env)))
-  ([form env] (analyze form env {}))
-  ([form env opts]
-   (with-bindings {#'jvm/run-passes run-passes}
-     (jvm/analyze form env opts))))
+(defn build-analyzer
+  [passes]
+  (let [run-passes (schedule passes)]
+   (fn -analyze
+    ([form] (-analyze form (jvm/empty-env)))
+    ([form env] (-analyze form env {}))
+    ([form env opts]
+     (with-bindings {#'jvm/run-passes run-passes}
+       (jvm/analyze form env opts))))))

@@ -3,11 +3,16 @@
             [clojure.set :as set]
             [language.reader :refer :all]
             [language.target :refer :all]
+            [language.golang.target :refer :all]
             [language.transformer :refer :all]
             [language.analyzer :refer :all]
             [language.golang.compiler :refer :all]))
 
 
+(def analyze
+  (build-analyzer default-passes))
+
+  
 (defn imports
   [decls]
   (let [ps 
