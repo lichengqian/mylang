@@ -50,6 +50,10 @@
   `(type* ~(str name) ~target))
 
 
+(defnative go-type
+  [c name target]
+  (type* (:form name) (c target)))
+
 (defn func*
   [name params ret-type body]
   (code-block "func ~A(~{~A~^, ~}) ~A {\n~A\n}\n"

@@ -96,9 +96,15 @@
 
 (defmethod -compile :invoke
   [{:keys [fn args]}]
-  (apply code-block "~A(~@{~A~^, ~})"
-    (-compile fn)
-    (map -compile args)))
+  (cond
+    (native-fn? fn)   ;; 支持native函数调用
+    (apply (:var fn) -compile args)
+
+    :else
+    (apply code-block "~A(~@{~A~^, ~})"
+      (-compile fn)
+      (map -compile args))))
+    
 
 (defmethod -compile :default
   [{:keys [op children]}]

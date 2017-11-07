@@ -48,3 +48,15 @@
 
    (catch Exception e
      #{e})))
+
+
+;;;; 定义语言特殊的语法结构，和代码生成策略
+(defmacro defnative
+  [name params & body]
+  `(defn ~name {:native true} ~params ~@body))
+
+;;;; 判断一个ast是否是一个native函数
+(defn native-fn?
+  [{:keys [op var]}]
+  (and (= op :var)
+       (= true (:native (meta var)))))
