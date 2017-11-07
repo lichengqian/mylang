@@ -5,6 +5,9 @@
             [language.compiler :refer :all]))
 
 
+(native-def string "string")
+
+
 (primitive-types
     int int8 int16 int32
     uint uint8 uint16 uint32)
@@ -50,7 +53,7 @@
   `(type* ~(str name) ~target))
 
 
-(defnative go-type
+(native-defn go-type
   [c name target]
   (type* (:form name) (c target)))
 

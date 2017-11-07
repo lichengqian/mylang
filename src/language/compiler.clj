@@ -50,13 +50,19 @@
      #{e})))
 
 
+(defmacro native-def
+  [name init]
+  `(def ~(with-meta name {:native true})  ~init))
+
+
 ;;;; 定义语言特殊的语法结构，和代码生成策略
-(defmacro defnative
+(defmacro native-defn
   [name params & body]
   `(defn ~name {:native true} ~params ~@body))
 
-;;;; 判断一个ast是否是一个native函数
-(defn native-fn?
+
+;;;; 判断一个ast是否是一个native
+(defn native?
   [{:keys [op var]}]
   (and (= op :var)
        (= true (:native (meta var)))))

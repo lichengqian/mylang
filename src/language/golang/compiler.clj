@@ -12,8 +12,10 @@
 
 
 (defmethod -compile :var
-  [{:keys [form]}]
-  form)
+  [{:keys [form var] :as ast}]
+  (cond
+    (native? ast) (var-get var)
+    :else form))
 
 
 (defmethod -compile :with-meta
@@ -97,7 +99,7 @@
 (defmethod -compile :invoke
   [{:keys [fn args]}]
   (cond
-    (native-fn? fn)   ;; 支持native函数调用
+    (native? fn)   ;; 支持native函数调用
     (apply (:var fn) -compile args)
 
     :else
