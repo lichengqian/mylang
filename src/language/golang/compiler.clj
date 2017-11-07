@@ -34,11 +34,11 @@
 
 (defmethod -compile :do
   [{:keys [statements ret env]}]
-  (code-block (if (= :ctx/return (:context env))
-                "~{~A\n~}return ~A"
-                "~{~A\n~}~A")
-    (map -compile statements)
-    (-compile ret)))
+  (code-block-with-keys (if (= :ctx/return (:context env))
+                         "~{~A\n~}return ~A"
+                         "~{~A\n~}~A")
+    :statements (mapv -compile statements)
+    :ret (-compile ret)))
 
 
 (defn compile-fn-param
@@ -49,10 +49,10 @@
 (defn compile-fn-method
   ([ast] (compile-fn-method "" ast))
   ([name {:keys [params body]}]
-   (code-block "func~A(~{~A~^, ~}) {\n~A}"
-     (str " "name) 
-     (map compile-fn-param params)
-     (-compile body))))
+   (code-block-with-keys "func~A(~{~A~^, ~}) {\n~A}"
+     :name (str " "name) 
+     :params (mapv compile-fn-param params)
+     :body (-compile body))))
 
 
 (defn compile-fn
@@ -66,7 +66,7 @@
 
 (defmethod -compile :def
   [{:keys [name init]}]
-  (println "---init-- ")
+  ; (println "---init-- ")
   ; (pprint init)
   (match [(:op init)]
     [:with-meta] (compile-fn name (:expr init))
@@ -89,14 +89,14 @@
 
 (defmethod -compile :let
   [{:keys [bindings body]}]
-  (code-block "~{~A\n~}~A"
-    (map -compile bindings)
-    (-compile body)))
+  (code-block-with-keys "~{~A\n~}~A"
+    :bindings (mapv -compile bindings)
+    :body (-compile body)))
 
 
 (defmethod -compile :invoke
   [{:keys [fn args]}]
-  (code-block "~A(~{~A~^, ~})"
+  (apply code-block "~A(~@{~A~^, ~})"
     (-compile fn)
     (map -compile args)))
 

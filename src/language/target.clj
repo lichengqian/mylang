@@ -16,6 +16,14 @@
   (-> (CodeBlock. format-str (vec args))
     (assoc :children [:args])))
 
+(defn code-block-with-keys
+  [format-str & kvs]
+  (let [args (mapv second (partition 2 kvs))
+        kvs (apply assoc {} kvs)]
+    (map->CodeBlock (merge {:format-str format-str
+                            :args args
+                            :children (into [] (keys kvs))}
+                           kvs))))
 
 (defrecord Type [name package])
 
@@ -32,7 +40,11 @@
 
 (defn collect-tags
   [key ast]
-  (->> (ast/nodes ast)
-    (map key)
-    (filter some?)
-    (into #{})))
+  (try
+   (->> (ast/nodes ast)
+     (map key)
+     (filter some?)
+     (into #{}))
+
+   (catch Exception e
+     #{e})))

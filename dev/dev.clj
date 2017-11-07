@@ -36,6 +36,7 @@
          [language.analyzer]
          [language.target]
          [language.golang.compiler]
+         [language.golang.core]
          [clj-compiler]))
 
 ;; Do not try to load source code from 'resources' directory
