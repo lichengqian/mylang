@@ -5,12 +5,10 @@
             [language.compiler :refer :all]))
 
 
-(native-def string "string")
-
-
-(primitive-types
-    int int8 int16 int32
-    uint uint8 uint16 uint32)
+(native-types
+  string
+  int int8 int16 int32
+  uint uint8 uint16 uint32)
 
 
 (defmacro nt*

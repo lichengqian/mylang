@@ -32,11 +32,7 @@
   (print-method (str (:name t)) w))
 
 
-(defmacro primitive-types
-  [& names]
-  `(do
-     ~@(for [name names]
-          `(def ~name (Type. ~(str name) nil)))))
+
 
 (defn collect-tags
   [key ast]
@@ -66,3 +62,11 @@
   [{:keys [op var]}]
   (and (= op :var)
        (= true (:native (meta var)))))
+
+
+;;;; 语言内置数据类型定义
+(defmacro native-types
+  [& names]
+  `(do
+     ~@(for [name names]
+          `(native-def ~name ~(str name)))))
