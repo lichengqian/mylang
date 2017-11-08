@@ -1,6 +1,9 @@
 (ns language.golang.analyzer
   (:require [language.analyzer :refer :all]
+            [language.compiler :refer :all]
             [language.golang.native :as native]))
+
+(def go-natives (all-natives 'language.golang.native))
 
 (defn native-expr
   [form]
@@ -22,7 +25,7 @@
 
 
 (def native-mapper
-  {#'println #'native/fmt-Println})
+  (build-native-map go-natives))
 
 (defn clj->golang
   {:pass-info {:walk :post :depends #{}}}

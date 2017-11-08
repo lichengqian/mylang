@@ -55,7 +55,8 @@
   [c name target]
   (type* (:form name) (c target)))
 
-(native-defn fmt-Println
+(defn fmt-Println
+  {:native true :from #'println}
   [c & args]
   (assoc (apply code-block "fmt.Println(~@{~S~^, ~})"
            (mapv c args))

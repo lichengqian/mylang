@@ -70,3 +70,23 @@
   `(do
      ~@(for [name names]
           `(native-def ~name ~(str name)))))
+
+
+;;;; 查找一个ns下所有的native 声明
+(defn all-natives
+  [ns]
+  (->> ns
+    ns-publics
+    vals
+    (filter #(= true (:native (meta %))))))
+
+
+;;;; 构造native-map
+(defn build-native-map
+  [vars]
+  (->> vars
+    (mapcat (fn [var]
+              (if-let [from (:from (meta var))]
+                [[from var]]
+                [])))
+    (into {})))
