@@ -33,7 +33,7 @@
          [language.common]
          [language.golang]
          [language.golang.emit]
-         [language.analyzer]
+         [language.golang.analyzer]
          [language.compiler]
          [language.golang.compiler]
          [language.golang.core]

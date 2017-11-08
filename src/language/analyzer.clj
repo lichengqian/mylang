@@ -9,7 +9,7 @@
 
 
 (def default-passes
-  #{#'analyze-host-expr
+  #{;; #'analyze-host-expr
     #'box
     #'constant-lift})
 
