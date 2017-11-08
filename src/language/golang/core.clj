@@ -19,7 +19,7 @@
           (apply set/union))]
     (if (empty? ps)
       ""
-      (code-block "imports (\n~{~S\n~})\n"
+      (code-block "import (\n~{\"~S\"\n~})\n"
         ps))))
 
 

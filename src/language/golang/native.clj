@@ -7,8 +7,8 @@
 
 (native-types
   string
-  int int8 int16 int32
-  uint uint8 uint16 uint32)
+  int int8 int16 int32 int64
+  uint uint8 uint16 uint32 uint64)
 
 
 (defmacro nt*
@@ -54,6 +54,12 @@
 (native-defn go-type
   [c name target]
   (type* (:form name) (c target)))
+
+(native-defn fmt-Println
+  [c & args]
+  (assoc (apply code-block "fmt.Println(~@{~S~^, ~})"
+           (mapv c args))
+    :package "fmt"))
 
 (defn func*
   [name params ret-type body]

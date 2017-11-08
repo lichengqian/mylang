@@ -8,7 +8,9 @@
 
 (defmethod -compile :const
   [{:keys [type val]}]
-  (code-block "~A" val))
+  (case type
+    :string (str "\"" val "\"")
+    (code-block "~A" val)))
 
 
 (defmethod -compile :var
