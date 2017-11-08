@@ -3,11 +3,7 @@
             [language.compiler :refer :all]
             [language.golang.native :as native]))
 
-(def go-natives (all-natives 'language.golang.native))
-
-(defn native-expr
-  [form]
-  (ns-resolve 'language.golang.native form))
+(def go-natives (find-all-natives 'language.golang.native))
 
 
 ;;;; golang host analyzer
@@ -16,7 +12,7 @@
   [{:keys [op target form tag env class] :as ast}]
   (case op
     :maybe-class
-    (if-let [var (native-expr form)]
+    (if-let [var (go-natives form)]
       (assoc ast :op :var
                  :var var)
       ast)

@@ -55,11 +55,15 @@
   [c name target]
   (type* (:form name) (c target)))
 
+(defn- go-call
+  [c fname args]
+  (apply code-block "~A(~@{~S~^, ~})" fname
+           (mapv c args)))
+
 (defn fmt-Println
   {:native true :from #'println}
   [c & args]
-  (assoc (apply code-block "fmt.Println(~@{~S~^, ~})"
-           (mapv c args))
+  (assoc (go-call c "fmt.Println" args)
     :package "fmt"))
 
 (defn func*

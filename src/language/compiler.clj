@@ -73,18 +73,18 @@
 
 
 ;;;; 查找一个ns下所有的native 声明
-(defn all-natives
+(defn find-all-natives
   [ns]
   (->> ns
     ns-publics
-    vals
-    (filter #(= true (:native (meta %))))))
+    (filter (fn [[k v]] (= true (:native (meta v)))))
+    (into {})))
 
 
 ;;;; 构造native-map
 (defn build-native-map
   [vars]
-  (->> vars
+  (->> vars vals
     (mapcat (fn [var]
               (if-let [from (:from (meta var))]
                 [[from var]]
